@@ -4,6 +4,7 @@ import asyncio, json
 from datetime import datetime
 from google.genai import types
 from ai import gen
+from character import NAME
 from config import TZ, FALLBACKS, EXTRACT_EVERY, SUMMARY_EVERY
 from utils import tier_of, with_tier
 from database import (get_recent, list_facts, update_fact, del_fact,
@@ -112,7 +113,7 @@ async def make_summary(cid):
     msgs = await asyncio.to_thread(get_recent, cid, 60)
     old = await asyncio.to_thread(get_summary, cid)
     text = "\n".join(
-        ("Foydalanuvchi: " if m["role"] == "user" else "Reze: ")
+        ("Foydalanuvchi: " if m["role"] == "user" else NAME + ": ")
         + m["content"] for m in msgs)
     prompt = (
         "Quyida oldingi xulosa va yangi suhbat. Ularni "

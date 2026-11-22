@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from google.genai import types
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from ai import gen
-from character import BASE, SLOT_PROMPTS, ANGLES
+from character import NAME, BASE, SLOT_PROMPTS, ANGLES
 from config import (TZ, STATE, REPEATS, CHAT_MODELS,
                     JIMLIK_HOURS, JIMLIK_START, JIMLIK_END,
                     PROACTIVE_HOURS, PROACTIVE_PER_DAY,
@@ -106,7 +106,7 @@ async def kun_oxiri(app, cid):
         return
     await asyncio.to_thread(save_fact, cid, KUNOXI_TAG + day + "] done")
     convo = "\n".join(f"{m['role']}: {m['content']}" for m in msgs[-60:])[:6000]
-    prompt = ("Quyida bugungi suhbat. Sen Reze: iliq va samimiy. Bugungi suhbatni "
+    prompt = ("Quyida bugungi suhbat. Sen " + NAME + ": iliq va samimiy. Bugungi suhbatni "
               "eslab, 2-3 gapli qisqa kun oxiri xabari yoz (o'zbekcha): bugun nima "
               "haqida gaplashdik va ertaga uchun yengil, bosimsiz bir so'z. "
               "Ro'yxat, sarlavha yo'q. Faqat matn.\n\n" + convo)

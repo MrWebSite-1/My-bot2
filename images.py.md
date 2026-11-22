@@ -8,16 +8,17 @@ import asyncio, os, random, re
 import httpx
 from telegram import InputMediaPhoto
 from config import PIXABAY_KEY
+from character import NAME
 
 PEXELS_KEY = os.environ.get("PEXELS_KEY", "")
 
 TAG_RE = re.compile(r"<[^>]+>")
-UA = {"User-Agent": "RezeBot/1.0 (personal Telegram bot)"}
+UA = {"User-Agent": "CompanionBot/1.0 (personal Telegram bot)"}
 DL_UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36"}
 
 # Rasm ko'rsatilmaydigan so'rovlar: mualliflik huquqi ostidagi seriya/personajlar
 # va botning o'zi (uning haqiqiy rasmi yo'q)
-SELF_TERMS = ["reze", "rezе", "rеze"]
+SELF_TERMS = list({"reze", "rezе", "rеze", NAME.lower()})
 COPYRIGHT_TERMS = [
     "chainsaw man", "naruto", "one piece", "jujutsu", "attack on titan",
     "dragon ball", "pokemon", "pokémon", "harry potter", "marvel", "avengers",

@@ -11,6 +11,7 @@ from config import (TZ, REPEATS, STYLES, VOICE, VOICES, RATES, VMODES,
 from database import (wipe, pending, del_rem, set_proactive, list_facts,
                       del_fact, save_fact, get_summary, get_settings,
                       update_setting)
+from character import NAME
 from memory import update_facts
 from utils import mark, tier_of, today_state, STATE_TAG
 from voice import tts, tts_gemini
@@ -537,7 +538,7 @@ async def eksport_cmd(update, ctx):
             when = str(r.get("remind_at", ""))
         lines.append(f"- {r.get('task', '')} ({when})")
     bio = BytesIO("\n".join(lines).encode("utf-8"))
-    bio.name = "reze-eksport.txt"
+    bio.name = f"{NAME.lower()}-eksport.txt"
     await update.message.reply_document(
         document=bio, caption="Mana, saqlangan ma'lumotlaringiz.")
 

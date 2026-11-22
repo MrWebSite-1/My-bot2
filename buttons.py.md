@@ -9,6 +9,7 @@ from config import (ALLOWED, ALLOWED_CHATS, UTC_FMT, STYLES, VOICES, RATES, VMOD
                     ENGINES, GVOICES)
 from database import (get_reminder, save_reminder, update_setting,
                       get_settings)
+from character import NAME
 from voice import speak
 
 async def on_button(update, ctx):
@@ -61,7 +62,7 @@ async def on_button(update, ctx):
                 st2 = await asyncio.to_thread(get_settings, cid)
                 try:
                     await q.message.reply_voice(await speak(
-                        "Salom, men Reze. Ovozim shunday "
+                        f"Salom, men {NAME}. Ovozim shunday "
                         "eshitiladi.", st2))
                 except Exception as e:
                     print("NAMUNA xato:", e)

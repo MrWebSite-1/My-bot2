@@ -53,3 +53,10 @@ alter table settings add column if not exists pro_gap int;
 alter table settings add column if not exists pro_from int;
 alter table settings add column if not exists pro_to int;
 alter table settings add column if not exists jimlik_h int;
+
+-- Yangi Supabase loyihalarda service_role ga ruxsat kerak bo'ladi
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
