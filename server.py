@@ -1,0 +1,17 @@
+"""PING SERVER: Render uxlab qolmasligi uchun.
+"""
+import os
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+class Ping(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+    do_HEAD = do_GET
+    def log_message(self, *a):
+        pass
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    HTTPServer(("0.0.0.0", port), Ping).serve_forever()

@@ -1,0 +1,7 @@
+python-telegram-bot
+google-genai>=2.25.0
+edge-tts
+supabase
+httpx
+numpy
+soundfile
