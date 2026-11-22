@@ -111,3 +111,15 @@ if ALLOWED_CHATS:
     _PRIV = _PRIV | (filters.ChatType.GROUPS &
                      filters.Chat(chat_id=list(ALLOWED_CHATS)))
 CHAT_OK = filters.UpdateType.MESSAGE & _PRIV
+
+FALLBACKS = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"]
+
+_cm = os.environ.get("CHAT_MODEL", "").strip()
+
+CHAT_MODELS = ([_cm] if _cm else []) + FALLBACKS
+
+# Botning o'zi yozish rejasi: kuniga necha marta, qaysi soatlar oralig'ida,
+# ikki xabar orasida kamida necha daqiqa
+PROACTIVE_HOURS = (8, 23)
+PROACTIVE_PER_DAY = (3, 5)
+PROACTIVE_GAP = 75
