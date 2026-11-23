@@ -15,6 +15,8 @@ from google.genai import types
 from config import (STATE, TZ, ALLOWED_CHATS, PEER_URL, RELAY_SECRET,
                     PEER_NAME, CHAT_MODELS)
 from character import NAME
+from config import ALLOWED
+from database import save_fact, list_facts
 from ai import gen, SAFETY
 from database import (get_settings, update_setting, save_msg, get_history,
                       list_facts)
@@ -241,6 +243,9 @@ async def on_relay(p):
 
 async def _on_relay(p):
     t = p.get("type")
+    if t == "fact":
+        await asyncio.to_thread(_apply_peer_fact, p)
+        return
     cid = int(p.get("chat_id") or 0)
     if cid not in ALLOWED_CHATS:
         return
@@ -308,6 +313,38 @@ async def _chain_reply(cid, chain, owner, peer_msg_id, k):
         await asyncio.to_thread(save_msg, cid, "model", ans)
         bump_day(cid)
         after_reply(cid, chain, owner, sent.message_id, ans)
+
+
+# ---------- umumiy faktlar (/ortoq_fakt) ----------
+ORTOQ_TAG = "[muhim] Ortoq: "
+
+
+def add_shared_fact(owner_cid, text):
+    """Faktni egasi lichkasiga va barcha ruxsat etilgan guruhlarga yozadi (takrorsiz)."""
+    fact = ORTOQ_TAG + text
+    saved = 0
+    for cid in {int(owner_cid), *ALLOWED_CHATS}:
+        if any(x.get("fact") == fact for x in list_facts(cid)):
+            continue
+        save_fact(cid, fact)
+        saved += 1
+    return saved
+
+
+def push_fact(text, owner):
+    send_bg({"type": "fact", "owner": str(owner), "text": text})
+
+
+def _apply_peer_fact(p):
+    try:
+        owner = int(p.get("owner") or 0)
+    except (TypeError, ValueError):
+        return
+    if owner not in ALLOWED:
+        return
+    text = re.sub(r"\s+", " ", str(p.get("text") or "")).strip()[:300]
+    if text:
+        add_shared_fact(owner, text)
 
 
 # ---------- sizsiz gaplashuv ----------

@@ -9,7 +9,7 @@ from config import ACCESS, CHAT_OK
 from guard import guarded, on_added
 import relay
 from bcommands import (botlar_cmd, rejim_cmd, gap_cmd, mustaqil_cmd,
-                       soni_cmd, oraliq_cmd, kutish_cmd, kunlik_cmd,
+                       soni_cmd, oraliq_cmd, kutish_cmd, kunlik_cmd, ortoq_fakt_cmd,
                        stop_cmd)
 from server import run_web
 from loops import start_loop
@@ -43,6 +43,7 @@ MENU.update({
     "botlar_kutish": "Bot xabarlari orasi (soniya)",
     "botlar_kunlik": "Kunlik bot-bot chegarasi (0 = yo'q)",
     "botlar_stop": "Botlar gaplashuvini darhol to'xtatish",
+    "ortoq_fakt": "Ikkala botga umumiy fakt (lichkada)",
 })
 
 async def post_init_all(app):
@@ -103,6 +104,7 @@ COMMANDS = [
     ("botlar_kutish", kutish_cmd),
     ("botlar_kunlik", kunlik_cmd),
     ("botlar_stop", stop_cmd),
+    ("ortoq_fakt", ortoq_fakt_cmd),
 ]
 
 app.add_handler(CommandHandler("id", guarded(my_id, True)))

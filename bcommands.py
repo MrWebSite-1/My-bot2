@@ -7,7 +7,8 @@ ishlatilmaydi).
 import asyncio
 from config import ALLOWED_CHATS, PEER_URL
 from database import update_setting
-from relay import COLS, DEFAULTS, group_cfg, invalidate, push_set
+from relay import (COLS, DEFAULTS, group_cfg, invalidate, push_set,
+                   add_shared_fact, push_fact)
 
 ON = {"on", "yoqish", "ha", "1"}
 OFF = {"off", "ochirish", "o'chirish", "yo'q", "0"}
@@ -173,3 +174,21 @@ async def stop_cmd(update, ctx):
     await _apply(update, [("talk", False), ("auto", False)],
                  "To'xtatildi: botlar o'zaro gaplashmaydi, sizsiz ham "
                  "yozmaydi. Siz yozsangiz, ular javob beraveradi.")
+
+
+async def ortoq_fakt_cmd(update, ctx):
+    """Lichkada: egasi tasdiqlagan faktni ikkala botga umumiy qiladi."""
+    m = update.message
+    if m.chat.type != "private":
+        await m.reply_text("Bu buyruqni lichkada yozing.")
+        return
+    text = " ".join(" ".join(ctx.args or []).split())
+    if not text:
+        await m.reply_text("Ishlatish: /ortoq_fakt <matn>")
+        return
+    if len(text) > 300:
+        await m.reply_text("Matn 300 belgidan oshmasin.")
+        return
+    n = await asyncio.to_thread(add_shared_fact, m.chat_id, text)
+    push_fact(text, m.chat_id)
+    await m.reply_text(f"Saqlandi ({n} ta joyga) va ikkinchi botga uzatildi.")
