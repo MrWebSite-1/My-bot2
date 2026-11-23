@@ -179,8 +179,14 @@ def group_block(kind):
          "Egasining gapi doim birinchi o'rinda. "
          f"{pn} bilan tabiiy, do'stona gaplash, lekin javoblarni cho'zma: "
          "1-2 gap. Suhbat tabiiy tugagan yoki aytadigan yangi gaping yo'q "
-         "bo'lsa, jim tur. JSON'ga qo'shimcha 'reply' maydonini qo'sh "
-         "(true yoki false). ")
+         "bo'lsa, jim tur. "
+         f"{pn} ga 'sen' deb, ismi bilan (faqat '{pn}' deb, boshqa nom "
+         "to'qima) yaqin do'stdek murojaat qil; 'siz' faqat egasiga. "
+         f"{pn} ga javobing har safar savol bilan tugamasin: savolni faqat "
+         "chindan qiziqsang ber, ko'pincha o'z fikringni, kuzatishingni yoki "
+         "kichik hazilni aytib qo'ya qol. Faqat o'z xarakteringga xos "
+         f"gapir, {pn} ning ohangiga o'xshab ketma, farq sezilib tursin. "
+         "JSON'ga qo'shimcha 'reply' maydonini qo'sh (true yoki false). ")
     if kind == "me":
         s += "Bu xabar senga qaratilgan: reply=true."
     elif kind == "owner":
