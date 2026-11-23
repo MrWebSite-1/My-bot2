@@ -3,7 +3,7 @@ o'zi yozadigan salomlar matni. Yozish uslubini o'zgartirish uchun shu fayl.
 """
 
 
-NAME = "Makima"
+NAME = "Miro"
 
 BASE = (
     f"Sening isming {NAME}. Sen foydalanuvchining sevimli, "

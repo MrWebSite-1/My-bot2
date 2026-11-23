@@ -123,3 +123,11 @@ CHAT_MODELS = ([_cm] if _cm else []) + FALLBACKS
 PROACTIVE_HOURS = (8, 23)
 PROACTIVE_PER_DAY = (3, 5)
 PROACTIVE_GAP = 75
+
+# B variant: ikki bot orasida xabar uzatish (relay)
+# PEER_URL: ikkinchi botning Render manzili (masalan https://my-bot2-xxxx.onrender.com)
+# RELAY_SECRET: ikkala botda bir xil yashirin kalit
+# PEER_NAME: ikkinchi botning ismi (guruhda unga murojaatni tanish uchun)
+PEER_URL = os.environ.get("PEER_URL", "").strip().rstrip("/")
+RELAY_SECRET = os.environ.get("RELAY_SECRET", "").strip()
+PEER_NAME = os.environ.get("PEER_NAME", "").strip()

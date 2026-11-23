@@ -9,7 +9,7 @@ from google.genai import types
 from ai import gen
 from character import NAME
 from config import TZ, FALLBACKS, EXTRACT_EVERY, SUMMARY_EVERY
-from utils import tier_of, with_tier
+from utils import tier_of, with_tier, is_peer_line
 from database import (get_recent, list_facts, update_fact, del_fact,
                       save_fact, get_summary, set_summary, count_user)
 
@@ -38,7 +38,8 @@ async def update_facts(cid):
     old = "\n".join(f'{i}. {x["fact"]}'
                     for i, x in enumerate(rows, 1)) or "(hali yo'q)"
     text = "\n".join(h["content"] for h in hist
-                     if h["role"] == "user")
+                     if h["role"] == "user"
+                     and not is_peer_line(h["content"]))
     prompt = (
         "Sen foydalanuvchi haqidagi faktlar ro'yxatini "
         "yuritasan. Quyida mavjud raqamlangan faktlar va "
@@ -116,7 +117,8 @@ async def make_summary(cid):
     msgs = await asyncio.to_thread(get_recent, cid, 60)
     old = await asyncio.to_thread(get_summary, cid)
     text = "\n".join(
-        ("Foydalanuvchi: " if m["role"] == "user" else NAME + ": ")
+        ("" if is_peer_line(m["content"]) else
+         ("Foydalanuvchi: " if m["role"] == "user" else NAME + ": "))
         + m["content"] for m in msgs)
     prompt = (
         "Quyida oldingi xulosa va yangi suhbat. Ularni "

@@ -23,6 +23,8 @@ from memory import maybe_extract
 from utils import (parse_json, send_text, style_text, get_pack,
                    mood_text, time_text, order_facts, with_tier, today_state, today_mood, intimacy_text)
 from voice import speak
+from relay import (group_ctx, group_block, worth_deciding, lock, BUSY,
+                   after_reply)
 
 
 async def build_system(cid, st, pack, msg, vm, frows, state=None, mood_over=None):
@@ -242,10 +244,12 @@ async def apply_memory(cid, mem, frows):
 
 
 async def deliver(msg, ctx, cid, vm, st, answer, speech, extra):
-    """Javobni yuboradi: matn, ovoz yoki ikkalasi (ovoz sozlamasiga qarab)."""
+    """Javobni yuboradi: matn, ovoz yoki ikkalasi (ovoz sozlamasiga qarab).
+    Yuborilgan asosiy xabarni qaytaradi."""
     want_voice = (vm == "always"
                   or (vm == "auto" and bool(msg.voice)))
     audio = None
+    sent = None
     if want_voice:
         try:
             await ctx.bot.send_chat_action(cid, "record_voice")
@@ -254,19 +258,20 @@ async def deliver(msg, ctx, cid, vm, st, answer, speech, extra):
             print("TTS xato:", e)
     if audio and vm == "auto":
         try:
-            await msg.reply_voice(audio)
+            sent = await msg.reply_voice(audio)
             if extra.strip():
                 await msg.reply_text(extra.strip())
         except Exception as e:
             print("OVOZ yuborish xato:", e)
-            await send_text(msg, ctx.bot, answer, extra)
+            sent = await send_text(msg, ctx.bot, answer, extra)
     else:
-        await send_text(msg, ctx.bot, answer, extra)
+        sent = await send_text(msg, ctx.bot, answer, extra)
         if audio:
             try:
                 await msg.reply_voice(audio)
             except Exception as e:
                 print("OVOZ yuborish xato:", e)
+    return sent
 
 
 # Telegram'ning ruxsat etilgan reaksiyalari (bitta belgili). Iliq xarakterga
@@ -298,13 +303,43 @@ async def react_to(msg, ctx, emoji):
         print("REAKSIYA xato:", e)
 
 async def handle(update, ctx):
+    """Kirish nuqtasi. Shaxsiy chat va guruh A rejimi avvalgidek; guruh B rejimida
+    gapga qarab javob (relay.py)."""
+    msg = update.message
+    if msg.chat.type == "private":
+        return await _handle_core(update, ctx, None)
+    gx = await group_ctx(msg, ctx.bot)
+    if gx["mode"] != "b":
+        return await _handle_core(update, ctx, gx)
+    cid = msg.chat_id
+    key = (cid, msg.message_id)
+    BUSY.add(key)
+    try:
+        if not gx["me"]:
+            await asyncio.to_thread(ensure_settings, cid)
+            text = (msg.text or msg.caption or "").strip()
+            if gx["peer"] or not worth_deciding(msg):
+                # javob yo'q, lekin kontekst uchun eslab qolamiz
+                if text:
+                    await asyncio.to_thread(save_msg, cid, "user", text)
+                return
+            await asyncio.sleep(random.uniform(2, 6))
+        async with lock(cid):
+            await _handle_core(update, ctx, gx)
+    finally:
+        BUSY.discard(key)
+
+
+async def _handle_core(update, ctx, gx):
     msg = update.message
     cid = msg.chat_id
+    group_b = bool(gx and gx["mode"] == "b")
     await asyncio.to_thread(ensure_settings, cid)
-    try:
-        await ctx.bot.send_chat_action(cid, "typing")
-    except Exception:
-        pass
+    if not (group_b and not gx["me"]):
+        try:
+            await ctx.bot.send_chat_action(cid, "typing")
+        except Exception:
+            pass
     st, pack = {}, {}
     try:
         st = await asyncio.to_thread(get_settings, cid)
@@ -318,6 +353,8 @@ async def handle(update, ctx):
         # 1) ko'rsatma + 2) suhbat tarixi + yangi xabar
         system = await build_system(cid, st, pack, msg, vm, frows, state_now,
                                     today_mood(raw_facts))
+        if group_b:
+            system += group_block("me" if gx["me"] else "owner")
         contents = history_contents(history)
         parts, pack = await build_parts(msg, ctx, cid, st, pack)
         contents.append(types.Content(role="user", parts=parts))
@@ -333,6 +370,11 @@ async def handle(update, ctx):
         # 4) javobni o'qish, eslatma va xotira
         answer, rem, mem, stk, img, speech, user_text = \
             parse_reply(r, msg)
+        if (group_b and not gx["me"]
+                and (parse_json(r.text) or {}).get("reply") is False):
+            # bu safar jim turamiz, lekin gap kontekstda qoladi
+            await asyncio.to_thread(save_msg, cid, "user", user_text)
+            return
         extra = await apply_reminder(cid, rem)
         extra += await apply_memory(cid, mem, frows)
         state_val = (parse_json(r.text) or {}).get("state")
@@ -345,9 +387,12 @@ async def handle(update, ctx):
             await ctx.bot.send_chat_action(cid, "typing")
         except Exception:
             pass
-        await deliver(msg, ctx, cid, vm, st, answer, speech, extra)
+        sent = await deliver(msg, ctx, cid, vm, st, answer, speech, extra)
         await asyncio.to_thread(save_msg, cid, "user", user_text)
         await asyncio.to_thread(save_msg, cid, "model", answer)
+        if group_b and sent is not None:
+            after_reply(cid, msg.message_id, msg.message_id,
+                        sent.message_id, answer)
         if isinstance(img, dict) and img.get("query"):
             try:
                 c_ = img.get("count")
@@ -367,6 +412,8 @@ async def handle(update, ctx):
         await maybe_extract(cid)
     except Exception as e:
         print("XATO:", e)
+        if group_b and not gx["me"]:
+            return  # murojaat qilinmagan xabarda xato haqida yozmaymiz
         if "BLOK" in str(e):
             await msg.reply_text("Hmm, buni shu tarzda ayta "
                                  "olmadim. Boshqacha so'z bilan "

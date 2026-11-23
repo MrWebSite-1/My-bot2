@@ -16,6 +16,8 @@
 | Eslatma sikli | `loops.py` (reminder_loop) |
 | Buyruqlar: /xotira*, /odat*, /yozish*, /jimlik, /kayfiyat*, /holat, /eksport, /odat_rejim va boshqalar | `commands.py` |
 | Guruh qoidalari: kim, qaysi guruh, murojaat, buyruq, kanal, chiqib ketish | `guard.py`, `config.py` (ALLOWED_CHATS, BOT_NAMES, CHAT_OK) |
+| B variant: gapga qarab javob, ikki bot orasida xabar uzatish, mustaqil gaplashuv | `relay.py`, `server.py` (/relay), `chat.py` (handle) |
+| B variant buyruqlari (/botlar, /guruh_rejim, /botlar_soni ...) | `bcommands.py`, menyu `bot.py` |
 | Buyruqlar ro'yxati, menyu tavsiflari, startup, xato ushlagich, run_polling | `bot.py` |
 | Rasm qidiruvi (Pixabay, Openverse, Pexels, Wikimedia), tarjima, filtr | `images.py` |
 | Ovoz (Gemini TTS, Edge) | `voice.py` |

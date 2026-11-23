@@ -1,12 +1,16 @@
 """BOT: ishga tushirish fayli. Faqat buyruqlarni ulaydi.
 Yangi buyruq qo'shish: commands.py da funksiya yozing, pastda ro'yxatga qo'shing.
 """
-import os, threading
+import asyncio, os, threading
 from telegram.ext import (ApplicationBuilder, MessageHandler,
                           CommandHandler, CallbackQueryHandler,
                           ChatMemberHandler, filters)
 from config import ACCESS, CHAT_OK
 from guard import guarded, on_added
+import relay
+from bcommands import (botlar_cmd, rejim_cmd, gap_cmd, mustaqil_cmd,
+                       soni_cmd, oraliq_cmd, kutish_cmd, kunlik_cmd,
+                       stop_cmd)
 from server import run_web
 from loops import start_loop
 from chat import handle
@@ -29,6 +33,17 @@ MENU = {'id': "Telegram ID'ingiz", 'unut': "Hamma xotirani o'chirish", 'holat': 
 
 MENU["eksport"] = "Ma'lumotni fayl qilib olish"
 MENU["odat_rejim"] = "Odat rejimi: A, B, AB yoki yoq"
+MENU.update({
+    "botlar": "Guruhda botlar sozlamalari",
+    "guruh_rejim": "Guruh rejimi: A (murojaat) yoki B (gapga qarab)",
+    "botlar_gap": "Botlar o'zaro gaplashsin: on yoki off",
+    "botlar_mustaqil": "Sizsiz gaplashuv: on yoki off",
+    "botlar_soni": "Bir zanjirda bot xabarlari soni",
+    "botlar_oraliq": "Sizsiz gaplashuv oralig'i (daqiqa)",
+    "botlar_kutish": "Bot xabarlari orasi (soniya)",
+    "botlar_kunlik": "Kunlik bot-bot chegarasi (0 = yo'q)",
+    "botlar_stop": "Botlar gaplashuvini darhol to'xtatish",
+})
 
 async def post_init_all(app):
     """Buyruqlar menyusini Telegram'ga ro'yxatga olish, keyin fon vazifalari."""
@@ -38,6 +53,7 @@ async def post_init_all(app):
         print("MENYU ro'yxatga olindi:", len(cmds))
     except Exception as e:
         print("MENYU xato:", repr(e))
+    relay.attach(app, asyncio.get_running_loop())
     await start_loop(app)
 
 app = (ApplicationBuilder().token(os.environ["BOT_TOKEN"])
@@ -78,6 +94,15 @@ COMMANDS = [
     ("stiker_bor", sticker_on),
     ("xulosa", summary_cmd),
     ("yangila", refresh_cmd),
+    ("botlar", botlar_cmd),
+    ("guruh_rejim", rejim_cmd),
+    ("botlar_gap", gap_cmd),
+    ("botlar_mustaqil", mustaqil_cmd),
+    ("botlar_soni", soni_cmd),
+    ("botlar_oraliq", oraliq_cmd),
+    ("botlar_kutish", kutish_cmd),
+    ("botlar_kunlik", kunlik_cmd),
+    ("botlar_stop", stop_cmd),
 ]
 
 app.add_handler(CommandHandler("id", guarded(my_id, True)))

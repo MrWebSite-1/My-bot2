@@ -2,7 +2,8 @@
 Qoidalar (A variant):
   1) xabar yuboruvchi ALLOWED_IDS da bo'lishi shart (boshqa botlar ham o'tmaydi);
   2) guruh ALLOWED_CHATS da bo'lishi shart;
-  3) guruhda faqat ism, @username yoki botning xabariga reply bo'lsa javob;
+  3) A rejimda guruhda faqat ism, @username yoki botning xabariga reply bo'lsa
+     javob; B rejimda (/guruh_rejim b) gapga qarab javob (relay.py);
   4) guruhda buyruq faqat /buyruq@botusername ko'rinishida (ikki bot adashmasin);
   5) kanal xabarlariga javob yo'q, botni kanalga qo'shsa chiqib ketadi.
 Guruhda o'zi yozish (salom, jimlik, kun oxiri) loops.py da o'chirilgan.
@@ -55,7 +56,10 @@ def guarded(fn, command=False):
                 if not command_for_me(msg, ctx.bot):
                     return
             elif not addressed(msg, ctx.bot):
-                return
+                # A rejim: murojaatsiz jim. B rejim: handle() o'zi hal qiladi.
+                from relay import group_cfg
+                if (await group_cfg(msg.chat.id))["mode"] != "b":
+                    return
         return await fn(update, ctx)
     return wrapper
 

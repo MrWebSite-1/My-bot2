@@ -26,7 +26,7 @@ def parse_json(t):
 
 async def send_text(msg, bot, text, extra=""):
     # Javob doim bitta xabar bo'lib yuboriladi
-    await msg.reply_text((text or "...").strip() + extra)
+    return await msg.reply_text((text or "...").strip() + extra)
 
 def style_text(st):
     key = (st or {}).get("style") or "muloyim"
@@ -207,4 +207,11 @@ def intimacy_text(n):
         s = ("Siz bilan ancha yaqinmiz: samimiy va erkin gapir, lekin egalik yoki "
              "yakkaxonlik bildirma.")
     return "\n\n" + s
+
+
+_PEER_LINE = re.compile(r"^\[[^\]\n]{1,30}\]: ")
+
+def is_peer_line(content):
+    """Ikkinchi botning gapi bazada '[Ism]: matn' ko'rinishida saqlanadi."""
+    return bool(_PEER_LINE.match(content or ""))
 ```

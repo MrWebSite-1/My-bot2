@@ -18,6 +18,7 @@ from utils import (KUNOXI_TAG, style_text, mood_text, time_text, order_facts,
                    today_state, get_pack, parse_odat, today_mood,
                    intimacy_text, get_odat_mode, habit_rule)
 from images import find_photos
+from relay import auto_tick
 from ai import gen, SAFETY
 from config import FALLBACKS
 from database import messages_between, save_fact, del_fact, count_user_messages
@@ -278,7 +279,13 @@ async def proactive_loop(app):
             for row in rows:
                 cid = row["chat_id"]
                 if cid < 0:
-                    continue  # guruhda tasodifiy xabar, jimlik, kun oxiri yo'q
+                    # guruhda tasodifiy salom, jimlik, kun oxiri yo'q;
+                    # faqat B rejimda sozlangan mustaqil gaplashuv
+                    try:
+                        await auto_tick(app, cid, row, now)
+                    except Exception as e:
+                        print("AVTO xato:", repr(e))
+                    continue
                 last = row.get("last_slot")
                 try:
                     last_dt = datetime.fromisoformat(last) if last else None
