@@ -23,6 +23,7 @@ from memory import maybe_extract
 from utils import (parse_json, send_text, style_text, get_pack,
                    mood_text, time_text, order_facts, with_tier, today_state, today_mood, intimacy_text)
 from voice import speak
+from relay import repeat_block, peer_answered
 from relay import (group_ctx, group_block, worth_deciding, lock, BUSY,
                    after_reply)
 
@@ -355,6 +356,7 @@ async def _handle_core(update, ctx, gx):
                                     today_mood(raw_facts))
         if group_b:
             system += group_block("me" if gx["me"] else "owner")
+            system += repeat_block(history)
         contents = history_contents(history)
         parts, pack = await build_parts(msg, ctx, cid, st, pack)
         contents.append(types.Content(role="user", parts=parts))
@@ -370,6 +372,10 @@ async def _handle_core(update, ctx, gx):
         # 4) javobni o'qish, eslatma va xotira
         answer, rem, mem, stk, img, speech, user_text = \
             parse_reply(r, msg)
+        if (group_b and not gx["me"] and peer_answered(cid, msg.message_id)):
+            # ikkinchi bot bu xabarga allaqachon javob berdi: jim turamiz
+            await asyncio.to_thread(save_msg, cid, "user", user_text)
+            return
         if (group_b and not gx["me"]
                 and (parse_json(r.text) or {}).get("reply") is False):
             # bu safar jim turamiz, lekin gap kontekstda qoladi

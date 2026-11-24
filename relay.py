@@ -15,7 +15,7 @@ from google.genai import types
 from config import (STATE, TZ, ALLOWED_CHATS, PEER_URL, RELAY_SECRET,
                     PEER_NAME, CHAT_MODELS)
 from character import NAME
-from config import ALLOWED
+from config import ALLOWED, PEER_MODELS
 from database import save_fact, list_facts
 from ai import gen, SAFETY
 from database import (get_settings, update_setting, save_msg, get_history,
@@ -216,6 +216,7 @@ async def _compose(cid, kind, instruction=None):
         cid, st, {}, SimpleNamespace(voice=None), "off", order_facts(raw),
         today_state(raw), today_mood(raw))
     system += group_block(kind)
+    system += repeat_block(history)
     contents = history_contents(history)
     if instruction:
         contents.append(types.Content(
@@ -223,7 +224,8 @@ async def _compose(cid, kind, instruction=None):
     cfg = types.GenerateContentConfig(
         system_instruction=system, temperature=1.0, safety_settings=SAFETY,
         response_mime_type="application/json")
-    r = await gen(models=CHAT_MODELS, contents=contents, config=cfg)
+    models = PEER_MODELS if kind in ("peer", "auto") else CHAT_MODELS
+    r = await gen(models=models, contents=contents, config=cfg)
     return parse_json(r.text) or {"answer": r.text}
 
 
@@ -265,6 +267,8 @@ async def _on_relay(p):
     if len(seen) > 500:
         seen.clear()
     seen[(cid, mid)] = time.time()
+    if str(p.get("owner") or "").isdigit():
+        mark_answered(cid, p.get("owner"))
     text = str(p.get("text") or "").strip()[:1500]
     if not text:
         return
@@ -345,6 +349,29 @@ def _apply_peer_fact(p):
     text = re.sub(r"\s+", " ", str(p.get("text") or "")).strip()[:300]
     if text:
         add_shared_fact(owner, text)
+
+
+# ---------- takror va javob tartibi ----------
+def repeat_block(history):
+    """Botning oxirgi javoblarini ko'rsatadi, takrorlamaslik uchun."""
+    lines = [h.get("content") or "" for h in history
+             if h.get("role") == "model" and h.get("content")][-4:]
+    if not lines:
+        return ""
+    shown = "\n".join("- " + " ".join(x.split())[:80] for x in lines)
+    return ("\n\nOxirgi javoblaring (bularni takrorlama: boshqa ibora, boshqa "
+            "tuzilma; har doim savol bilan tugatma):\n" + shown)
+
+
+def mark_answered(cid, owner_mid):
+    box = STATE.setdefault("answered", {})
+    if len(box) > 500:
+        box.clear()
+    box[(int(cid), int(owner_mid))] = time.time()
+
+
+def peer_answered(cid, owner_mid):
+    return (int(cid), int(owner_mid)) in STATE.get("answered", {})
 
 
 # ---------- sizsiz gaplashuv ----------

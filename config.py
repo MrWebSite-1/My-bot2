@@ -118,6 +118,10 @@ _cm = os.environ.get("CHAT_MODEL", "").strip()
 
 CHAT_MODELS = ([_cm] if _cm else []) + FALLBACKS
 
+# Bot-bot va sizsiz gaplashuv uchun (ixtiyoriy yengilroq model: PEER_MODEL env)
+_pm = os.environ.get("PEER_MODEL", "").strip()
+PEER_MODELS = ([_pm] if _pm else []) + FALLBACKS
+
 # Botning o'zi yozish rejasi: kuniga necha marta, qaysi soatlar oralig'ida,
 # ikki xabar orasida kamida necha daqiqa
 PROACTIVE_HOURS = (8, 23)
