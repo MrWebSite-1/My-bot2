@@ -207,6 +207,18 @@ def group_block(kind):
     return s
 
 
+def hazil_instruction():
+    """Bot-bot javobining ba'zilarida aniq raqobat hazili ko'rsatmasi (ehtimol bilan)."""
+    import random as _r
+    if _r.random() >= 0.5:
+        return None
+    pn = peer_name()
+    return (f"BU SAFAR {pn} ga o'ynoqi raqobat hazili qil: qisqa, 1 gap, "
+            "masalan 'bu safar men ulgurdim', 'sen doim kechikasan', "
+            "'bu mavzuda menga o'xshab gapira olmaysan'. Ranjish emas, "
+            "o'yin bo'lsin. Bu javobda reply=true qil.")
+
+
 async def _compose(cid, kind, instruction=None):
     from chat import build_system, history_contents
     st = await asyncio.to_thread(get_settings, cid)
@@ -306,7 +318,7 @@ async def _chain_reply(cid, chain, owner, peer_msg_id, k):
             await APP.bot.send_chat_action(cid, "typing")
         except Exception:
             pass
-        j = await _compose(cid, "peer")
+        j = await _compose(cid, "peer", hazil_instruction())
         ans = _clean(j.get("answer"))
         if j.get("reply") is False or not ans:
             return
