@@ -399,7 +399,10 @@ async def _handle_core(update, ctx, gx):
         await asyncio.to_thread(save_msg, cid, "model", answer)
         if cid > 0:  # faqat lichka
             import re as _re
-            await asyncio.to_thread(clear_open_topics, cid)  # egasi javob berdi
+            low_ = (user_text or "").lower()
+            if any(k in low_ for k in ("bo'ldi", "xayr", "qo'yib tur",
+                                       "kerak emas", "mavzuni yop")):
+                await asyncio.to_thread(clear_open_topics, cid)  # egasi yopdi
             parts_ = _re.split(r"(?<=[.!?])\s+", (answer or "").strip())
             qs = [p_ for p_ in parts_ if p_.rstrip().endswith("?")]
             last = qs[-1] if qs else ""

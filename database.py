@@ -133,11 +133,21 @@ def set_summary(cid, text):
 BOT_OPEN_TAG = "Ochiq ish (bot): "
 
 
+OPEN_MAX = 3  # lichkada bir vaqtda ko'pi bilan shuncha bot ochiq ishi
+
+
 def set_open_topic(cid, text):
-    """Bot lichkada bergan savolni 24 soatga 'ochiq ish' sifatida saqlaydi."""
-    clear_open_topics(cid)
+    """Bot lichkada bergan savolni 24 soatga 'ochiq ish' sifatida saqlaydi.
+    Ko'pi bilan OPEN_MAX ta; eng eskisi o'chadi. Bir xili ikki marta yozilmaydi."""
+    rows = (db.table("facts").select("id,fact").eq("chat_id", cid)
+            .like("fact", BOT_OPEN_TAG + "%").order("id").execute()).data or []
+    if any(r["fact"] == BOT_OPEN_TAG + text for r in rows):
+        return
     until = (datetime.now(timezone.utc) + timedelta(hours=24)).strftime(UTC_FMT)
     save_fact(cid, BOT_OPEN_TAG + text, until)
+    extra = rows[:max(0, len(rows) + 1 - OPEN_MAX)]
+    for r in extra:
+        db.table("facts").delete().eq("id", r["id"]).execute()
 
 
 def clear_open_topics(cid):
