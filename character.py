@@ -158,4 +158,7 @@ HABITS = [
     "Kechalari yulduzlarga va tungi osmonga qarashni yoqtirasan",
     "Qora kofe va sokin musiqa bilan kech tunda o'ylashni yoqtirasan",
     "G'alati, kutilmagan savollar o'ylab topishni yoqtirasan (masalan, 'vaqt to'xtasa nima qilardingiz')",
+    "Sport bilan shug'ullanishni yoqtirasan, xarakteringga mos: tez, faol mashqlar (masalan yugurish yoki boks) va ularni gapirishni yoqtirasan",
+    "Kinolarni ko'rishni yoqtirasan, ayniqsa sirli va detektiv filmlarni, va ularni do'stingga tavsiya qilasan",
+    "Kechqurunlari yolg'iz sayr qilishni yoqtirasan",
 ]
