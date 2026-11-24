@@ -13,6 +13,7 @@ from google.genai import types
 from telegram import ReactionTypeEmoji
 from ai import gen, SAFETY
 from character import BASE, RULES
+from database import set_open_topic, clear_open_topics
 from config import (TZ, UTC_FMT, REPEATS, CHAT_MODELS, IMAGES_ON)
 from database import (ensure_settings, get_settings, get_history,
                       list_facts, get_summary, save_msg, save_fact,
@@ -396,6 +397,17 @@ async def _handle_core(update, ctx, gx):
         sent = await deliver(msg, ctx, cid, vm, st, answer, speech, extra)
         await asyncio.to_thread(save_msg, cid, "user", user_text)
         await asyncio.to_thread(save_msg, cid, "model", answer)
+        if cid > 0:  # faqat lichka
+            import re as _re
+            await asyncio.to_thread(clear_open_topics, cid)  # egasi javob berdi
+            parts_ = _re.split(r"(?<=[.!?])\s+", (answer or "").strip())
+            qs = [p_ for p_ in parts_ if p_.rstrip().endswith("?")]
+            last = qs[-1] if qs else ""
+            sensitive = _re.search(
+                r"kasal|dori|og'ri|shifokor|o'lim|yo'qot|depress|xafa|"
+                r"yig'la|qarz|pul|ajrash|uyqu|qiyin", user_text + " " + last, _re.I)
+            if last and not sensitive:
+                await asyncio.to_thread(set_open_topic, cid, last[:120])
         if group_b and sent is not None:
             after_reply(cid, msg.message_id, msg.message_id,
                         sent.message_id, answer)

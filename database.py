@@ -130,6 +130,22 @@ def set_summary(cid, text):
     (db.table("settings").update({"summary": text})
      .eq("chat_id", cid).execute())
 
+BOT_OPEN_TAG = "Ochiq ish (bot): "
+
+
+def set_open_topic(cid, text):
+    """Bot lichkada bergan savolni 24 soatga 'ochiq ish' sifatida saqlaydi."""
+    clear_open_topics(cid)
+    until = (datetime.now(timezone.utc) + timedelta(hours=24)).strftime(UTC_FMT)
+    save_fact(cid, BOT_OPEN_TAG + text, until)
+
+
+def clear_open_topics(cid):
+    """Faqat bot yaratgan ochiq ishlarni o'chiradi (xotiradagilarga tegmaydi)."""
+    (db.table("facts").delete().eq("chat_id", cid)
+     .like("fact", BOT_OPEN_TAG + "%").execute())
+
+
 def update_fact(cid, fid, text, until=None):
     (db.table("facts")
      .update({"fact": text, "expires_at": until})
