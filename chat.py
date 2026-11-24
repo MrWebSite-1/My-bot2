@@ -304,6 +304,33 @@ async def react_to(msg, ctx, emoji):
     except Exception as e:
         print("REAKSIYA xato:", e)
 
+def _history_gap(history):
+    """Oxirgi 2 soatdan eski xabarlarni olib tashlaydi (oxirgi 2 tasi doim qoladi).
+    Qaytaradi: (yangi_tarix, oxirgi_xabardan_beri_daqiqa)."""
+    from datetime import datetime, timezone
+
+    def ts(h):
+        try:
+            t = datetime.fromisoformat(str(h.get("created_at")).replace("Z", "+00:00"))
+        except Exception:
+            return None
+        return t.replace(tzinfo=timezone.utc) if t.tzinfo is None else t
+
+    if not history:
+        return history, 0
+    last = ts(history[-1])
+    if last is None:
+        return history, 0
+    gap = int((datetime.now(timezone.utc) - last).total_seconds() // 60)
+    n = len(history)
+    kept = []
+    for i, h in enumerate(history):
+        t = ts(h)
+        if i >= n - 2 or t is None or (last - t).total_seconds() <= 7200:
+            kept.append(h)
+    return kept, gap
+
+
 async def handle(update, ctx):
     """Kirish nuqtasi. Shaxsiy chat va guruh A rejimi avvalgidek; guruh B rejimida
     gapga qarab javob (relay.py)."""
@@ -347,6 +374,7 @@ async def _handle_core(update, ctx, gx):
         st = await asyncio.to_thread(get_settings, cid)
         pack = await get_pack(ctx.bot, st)
         history = await asyncio.to_thread(get_history, cid)
+        history, gap_min = _history_gap(history)
         raw_facts = await asyncio.to_thread(list_facts, cid)
         frows = order_facts(raw_facts)
         state_now = today_state(raw_facts)
@@ -355,6 +383,11 @@ async def _handle_core(update, ctx, gx):
         # 1) ko'rsatma + 2) suhbat tarixi + yangi xabar
         system = await build_system(cid, st, pack, msg, vm, frows, state_now,
                                     today_mood(raw_facts))
+        if gap_min >= 20:
+            system += ("\n\nDiqqat: suhbat %d daqiqa oldin to'xtagan. Eski "
+                       "so'rovlarni (masalan 'hozir olib kelaman' degan va'dalarni) "
+                       "davom ettirma. Faqat foydalanuvchining yangi xabariga javob ber; "
+                       "agar eski so'rov hali bajarilmagan bo'lsa, qisqa so'rab qo'y." % gap_min)
         if group_b:
             system += group_block("me" if gx["me"] else "owner")
             system += repeat_block(history)

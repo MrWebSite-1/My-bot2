@@ -9,7 +9,7 @@ db = create_client(os.environ["SUPABASE_URL"],
                    os.environ["SUPABASE_KEY"])
 
 def get_history(cid):
-    r = (db.table("messages").select("role,content")
+    r = (db.table("messages").select("role,content,created_at")
          .eq("chat_id", cid).order("id", desc=True)
          .limit(HISTORY).execute())
     return list(reversed(r.data))
