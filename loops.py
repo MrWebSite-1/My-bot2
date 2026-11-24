@@ -22,6 +22,7 @@ from relay import auto_tick
 from ai import gen, SAFETY
 from config import FALLBACKS
 from database import messages_between, save_fact, del_fact, count_user_messages
+from database import BOT_OPEN_TAG
 from google.genai import types
 from datetime import timezone, timedelta
 
@@ -181,6 +182,18 @@ async def ensure_digest(cid, frows):
     await asyncio.to_thread(save_fact, cid, tag + text)
     return text
 
+def _alive(x):
+    """Ochiq ish hali muddati o'tmagan bo'lsa True."""
+    from datetime import datetime as _dt, timezone as _tz
+    e = x.get("expires_at")
+    if not e:
+        return True
+    try:
+        return _dt.fromisoformat(str(e).replace("Z", "+00:00")) > _dt.now(_tz.utc)
+    except Exception:
+        return True
+
+
 async def greet(app, cid, kind, prompt_kind=None):
     if cid < 0:
         return  # guruhda o'zi yozmaydi
@@ -227,7 +240,15 @@ async def greet(app, cid, kind, prompt_kind=None):
     prompt = SLOT_PROMPTS[prompt_kind or kind]
     opens = [x["fact"] for x in frows
              if "Ochiq ish" in x["fact"]]
-    if opens and not ev and random.random() < 0.5:
+    # Bot ochiq ishlari: navbat bilan (eng eskisi), bir marta, muddati o'tmaganlari
+    nudged = None
+    bot_open = [x for x in frows
+                if x["fact"].startswith(BOT_OPEN_TAG) and _alive(x)]
+    if bot_open and not ev:
+        nudged = bot_open[0]
+        prompt += ("\n\nOchiq ish: " + nudged["fact"][len(BOT_OPEN_TAG):]
+                   + ". Shu haqida tabiiy so'ra, bir marta, bosim qilmasdan.")
+    elif opens and not ev and random.random() < 0.5:
         prompt += ("\n\nOchiq ish: " + random.choice(opens)
                    + ". Shu haqida tabiiy so'ra (natijasi qanday bo'ldi), bir marta, bosim qilmasdan.")
     elif ev:
@@ -249,6 +270,9 @@ async def greet(app, cid, kind, prompt_kind=None):
         await asyncio.sleep(min(3, 1 + len(text) / 120))
         await app.bot.send_message(cid, text)
         await asyncio.to_thread(save_msg, cid, "model", text)
+        if nudged is not None:
+            # eslatildi: qayta eslatilmasin
+            await asyncio.to_thread(del_fact, cid, nudged["id"])
         if picked:
             try:
                 if picked["emoji"]:
