@@ -331,6 +331,28 @@ def _history_gap(history):
     return kept, gap
 
 
+def quoted_text(msg):
+    """Foydalanuvchi biror xabarga reply yozgan bo'lsa, o'sha xabarni va kimniki ekanini qaytaradi."""
+    r = getattr(msg, "reply_to_message", None)
+    if r is None:
+        return ""
+    txt = ((r.text or r.caption or "").strip())[:300]
+    if not txt:
+        return ""
+    from relay import peer_name
+    frm = r.from_user
+    if frm is None:
+        return ""
+    if frm.is_bot and frm.id == msg.get_bot().id:
+        return (f"[Foydalanuvchi aynan sizning shu oldingi javobingizga javob yozdi: "
+                f"\"{txt}\"]\n")
+    if frm.is_bot:
+        return (f"[Foydalanuvchi {peer_name()} ning shu xabariga javob yozdi: "
+                f"\"{txt}\"]\n")
+    return (f"[Foydalanuvchi o'zining shu oldingi xabariga qaytib javob yozdi: "
+            f"\"{txt}\"]\n")
+
+
 async def handle(update, ctx):
     """Kirish nuqtasi. Shaxsiy chat va guruh A rejimi avvalgidek; guruh B rejimida
     gapga qarab javob (relay.py)."""
@@ -393,6 +415,9 @@ async def _handle_core(update, ctx, gx):
             system += repeat_block(history)
         contents = history_contents(history)
         parts, pack = await build_parts(msg, ctx, cid, st, pack)
+        q_ = quoted_text(msg)
+        if q_:
+            parts = [types.Part(text=q_)] + list(parts)
         contents.append(types.Content(role="user", parts=parts))
 
         # 3) Gemini
