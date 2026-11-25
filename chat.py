@@ -27,7 +27,7 @@ from utils import (parse_json, send_text, style_text, get_pack,
 from voice import speak
 from relay import repeat_block, peer_answered
 from relay import (group_ctx, group_block, worth_deciding, lock, BUSY,
-                   after_reply)
+                   after_reply, note_owner)
 
 
 async def build_system(cid, st, pack, msg, vm, frows, state=None, mood_over=None):
@@ -380,6 +380,7 @@ async def handle(update, ctx):
     cid = msg.chat_id
     key = (cid, msg.message_id)
     BUSY.add(key)
+    note_owner(cid, msg.message_id)  # eski bot-bot zanjirlari shu paytdan to'xtaydi
     try:
         if not gx["me"]:
             await asyncio.to_thread(ensure_settings, cid)
@@ -391,6 +392,13 @@ async def handle(update, ctx):
                 return
             await asyncio.sleep(random.uniform(2, 6))
         async with lock(cid):
+            if not gx["me"] and peer_answered(cid, msg.message_id):
+                # kutish va navbat paytida ikkinchi bot allaqachon javob bergan:
+                # Gemini'ga murojaat qilmaymiz (kvota), gap kontekstda qoladi
+                text = (msg.text or msg.caption or "").strip()
+                if text:
+                    await asyncio.to_thread(save_msg, cid, "user", text)
+                return
             await _handle_core(update, ctx, gx)
     finally:
         BUSY.discard(key)

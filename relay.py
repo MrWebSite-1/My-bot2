@@ -39,6 +39,8 @@ READY = False
 
 CH = STATE.setdefault("chains", {})      # (chat, zanjir) -> bot xabarlari soni
 BUSY = STATE.setdefault("busy", set())   # (chat, egasi xabari id): hozir ishlanyapti
+ACTIVE = STATE.setdefault("active", set())  # (chat, zanjir): javob navbatda/tayyorlanyapti
+OWNER_LAST = STATE.setdefault("owner_last", {})  # chat -> (egasi xabari id, vaqt)
 _cache = {}
 
 
@@ -102,6 +104,30 @@ async def group_ctx(msg, bot):
     cfg = await group_cfg(msg.chat_id)
     return {"cfg": cfg, "mode": cfg["mode"],
             "me": addressed(msg, bot), "peer": addressed_peer(msg, bot)}
+
+
+def note_owner(cid, mid):
+    """Egasining eng oxirgi xabarini eslab qoladi (eskirgan zanjirni bilish uchun).
+    Telegram xabar id'lari chatda o'sib boradi, shuning uchun id taqqoslanadi."""
+    OWNER_LAST[cid] = (int(mid), time.time())
+
+
+def chain_stale(cid, chain, owner):
+    """Zanjir boshlangandan keyin egasi yangi xabar yozgan bo'lsa True: eski
+    zanjir to'xtaydi. Egasi xabari zanjiri: id bo'yicha; 'auto<vaqt>' zanjiri: vaqt
+    bo'yicha (ikki serverning soati bir-biridan sal farq qilishi mumkin)."""
+    last = OWNER_LAST.get(cid)
+    if not last:
+        return False
+    owner = str(owner or "")
+    if owner.isdigit():
+        return last[0] > int(owner)
+    if str(chain).startswith("auto"):
+        try:
+            return last[1] > int(str(chain)[4:])
+        except ValueError:
+            return False
+    return False
 
 
 def lock(cid):
@@ -290,7 +316,10 @@ async def _on_relay(p):
         STATE["peer_name"] = frm
     chain = str(p.get("chain") or mid)
     k = (cid, chain)
-    CH[k] = max(CH.get(k, 0), int(p.get("turn") or 1))
+    # zanjirdagi JAMI bot xabarlari: o'zimniki ham, kelgani ham. Ikkala bot
+    # egasiga parallel javob bergan bo'lsa ham sanoq to'g'ri o'sadi; turn qiymati
+    # esa qayta ishga tushgandan keyin sanoqni tiklaydi.
+    CH[k] = max(CH.get(k, 0) + 1, int(p.get("turn") or 1))
     if chain.startswith("auto"):
         STATE.setdefault("auto_last", {})[cid] = time.time()
     # kontekst uchun tarixga yozamiz (javob berish-bermasligimizdan qat'i nazar)
@@ -302,18 +331,33 @@ async def _on_relay(p):
     if not turns_ok(cfg, CH[k]) or not day_ok(cfg, cid):
         return
     owner = str(p.get("owner") or "")
-    if owner and (cid, int(owner)) in BUSY:
+    if owner.isdigit() and (cid, int(owner)) in BUSY:
         return  # egasining xabari hozir ishlanyapti, o'sha yo'l ikkinchi bot gapini ko'radi
-    await _chain_reply(cid, chain, owner, mid, k)
+    if chain_stale(cid, chain, owner):
+        return  # egasi yangi xabar yozgan: eski zanjir tugadi
+    if k in ACTIVE:
+        return  # bu zanjir uchun javob allaqachon tayyorlanyapti (kontekstda bu gap bor)
+    ACTIVE.add(k)
+    try:
+        await _chain_reply(cid, chain, owner, mid, k)
+    finally:
+        ACTIVE.discard(k)
+
+
+def chain_allowed(cfg, cid, chain, owner, k):
+    """Zanjirda hozir javob berish mumkinmi (kutishdan va Gemini'dan keyin qayta tekshiriladi)."""
+    return (cfg["mode"] == "b" and cfg["talk"]
+            and turns_ok(cfg, CH.get(k, 0)) and day_ok(cfg, cid)
+            and not chain_stale(cid, chain, owner))
 
 
 async def _chain_reply(cid, chain, owner, peer_msg_id, k):
     await asyncio.sleep(max(0, (await group_cfg(cid))["delay"]) + random.uniform(0, 2))
     async with lock(cid):
         cfg = await group_cfg(cid, fresh=True)
-        if cfg["mode"] != "b" or not cfg["talk"]:
+        if not chain_allowed(cfg, cid, chain, owner, k):
             return
-        if not turns_ok(cfg, CH.get(k, 0)) or not day_ok(cfg, cid):
+        if owner.isdigit() and (cid, int(owner)) in BUSY:
             return
         try:
             await APP.bot.send_chat_action(cid, "typing")
@@ -322,6 +366,10 @@ async def _chain_reply(cid, chain, owner, peer_msg_id, k):
         j = await _compose(cid, "peer", hazil_instruction())
         ans = _clean(j.get("answer"))
         if j.get("reply") is False or not ans:
+            return
+        # Gemini kutilayotganda chegara tugagan yoki egasi yozgan bo'lishi mumkin
+        cfg = await group_cfg(cid, fresh=True)
+        if not chain_allowed(cfg, cid, chain, owner, k):
             return
         from telegram import ReplyParameters
         sent = await APP.bot.send_message(
