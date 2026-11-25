@@ -583,7 +583,7 @@ async def sticker_list_cmd(update, ctx):
         await update.message.reply_text(
             f"Stiker paketi yo'q (stikerlar {state}). Qo'shish: /stiker_qosh <nom>")
         return
-    lines = [f"Stikerlar: {state}. Paketlar ({len(names)}/5):"]
+    lines = [f"Stikerlar: {state}. Paketlar: {len(names)} ta"]
     for i, n in enumerate(names, 1):
         lines.append(f"{i}. {n}  (t.me/addstickers/{n})")
     lines.append("Qo'shish: /stiker_qosh <nom>\nO'chirish: /stiker_ochir <nom>")
@@ -602,10 +602,6 @@ async def sticker_add_cmd(update, ctx):
     names = _pack_names(st)
     if name in names:
         await update.message.reply_text("Bu paket allaqachon ro'yxatda.")
-        return
-    if len(names) >= 5:
-        await update.message.reply_text(
-            "Ko'pi bilan 5 ta paket. Avval birini o'chiring: /stiker_ochir <nom>")
         return
     try:
         ss = await ctx.bot.get_sticker_set(name)

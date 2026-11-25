@@ -129,13 +129,24 @@ async def build_parts(msg, ctx, cid, st, pack):
                         "ber.)"))]
         except Exception as e:
             print("STIKER ko'rish xato:", e)
-        if (msg.sticker.set_name and not st.get("sticker_set")
+        # Yuborilgan stikerning paketi ro'yxatda bo'lmasa, qo'shiladi
+        names_ = [x.strip() for x in str(st.get("sticker_set") or "").split(",")
+                  if x.strip()]
+        new_set = msg.sticker.set_name
+        if (new_set and new_set not in names_
                 and st.get("stickers") is not False):
+            names_.append(new_set)
             await asyncio.to_thread(
-                update_setting, cid, "sticker_set",
-                msg.sticker.set_name)
-            pack = await get_pack(ctx.bot, {
-                "sticker_set": msg.sticker.set_name})
+                update_setting, cid, "sticker_set", ",".join(names_))
+            await asyncio.to_thread(update_setting, cid, "stickers", True)
+            st["sticker_set"] = ",".join(names_)
+            pack = await get_pack(ctx.bot, st)
+            try:
+                await msg.reply_text(
+                    f"Stiker paketi qo'shildi: {new_set} "
+                    f"(jami {len(names_)} ta). Ro'yxat: /stiker_royxat")
+            except Exception:
+                pass
     else:
         parts = [types.Part(text=msg.text)]
     return parts, pack

@@ -30,27 +30,35 @@ def style_text(st):
     extra = STYLES.get(key, STYLES["muloyim"])[1]
     return ("\n\n" + extra) if extra else ""
 
+async def _load_pack(bot, name):
+    try:
+        ss = await bot.get_sticker_set(name)
+        d = {}
+        for x in ss.stickers:
+            if x.emoji:
+                d.setdefault(x.emoji, []).append(x.file_id)
+        return name, d
+    except Exception as e:
+        print("PAKET xato:", name, e)
+        return name, None
+
+
 async def get_pack(bot, st):
-    """Bir nechta paketni (vergul bilan) birlashtirib, emotsiya bo'yicha qaytaradi."""
+    """Barcha paketlarni (vergul bilan) birlashtirib, emotsiya bo'yicha qaytaradi.
+    Keshda yo'q paketlar bir vaqtda yuklanadi."""
     raw = (st or {}).get("sticker_set") or ""
     names = [x.strip() for x in str(raw).split(",") if x.strip()]
     if not names or (st or {}).get("stickers") is False:
         return {}
     cache = STATE.setdefault("packs", {})
-    merged = {}
-    for name in names[:5]:
-        if name not in cache:
-            try:
-                ss = await bot.get_sticker_set(name)
-                d = {}
-                for x in ss.stickers:
-                    if x.emoji:
-                        d.setdefault(x.emoji, []).append(x.file_id)
+    missing = [n for n in names if n not in cache]
+    if missing:
+        for name, d in await asyncio.gather(*(_load_pack(bot, n) for n in missing)):
+            if d is not None:
                 cache[name] = d
-            except Exception as e:
-                print("PAKET xato:", name, e)
-                continue
-        for k, v in cache[name].items():
+    merged = {}
+    for name in names:
+        for k, v in cache.get(name, {}).items():
             merged.setdefault(k, []).extend(v)
     return merged
 
