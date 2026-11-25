@@ -16,7 +16,7 @@ from database import (get_recent, list_facts, get_history, get_settings,
                       set_slot, due_reminders, advance, mark_done)
 from utils import (KUNOXI_TAG, style_text, mood_text, time_text, order_facts,
                    today_state, get_pack, parse_odat, today_mood,
-                   intimacy_text, get_odat_mode, habit_rule)
+                   intimacy_text, get_odat_mode, habit_rule, ODATKUN_TAG)
 from images import find_photos
 from relay import auto_tick
 from ai import gen, SAFETY
@@ -141,6 +141,8 @@ def pick_habit(cid, frows):
     if get_odat_mode(frows) == "yoq":
         return None
     day = datetime.now(TZ).strftime("%Y-%m-%d")
+    if any(x["fact"].startswith(ODATKUN_TAG + day) for x in frows):
+        return None  # bugun odat allaqachon aytilgan
     rnd = random.Random(f"habit-{cid}-{day}")
     if rnd.random() > 0.4:
         return None
@@ -171,6 +173,7 @@ async def ensure_digest(cid, frows):
         return None
     convo = "\n".join(f"{r['role']}: {r['content']}" for r in rows[-60:])[:6000]
     prompt = ("Quyida kechagi suhbat. Asosiy mavzuni bir-ikki gapda, o'zbekcha yoz. "
+              "Sog'liq, kasallik, dori, pul va moliya haqidagi gaplarni yozma. "
               "Faqat matn.\n\n" + convo)
     try:
         r = await gen(models=FALLBACKS, contents=[types.Content(
@@ -259,7 +262,10 @@ async def greet(app, cid, kind, prompt_kind=None):
     system += mood_text(cid, today_mood(frows))
     picked = pick_habit(cid, frows)
     if picked:
-        system += ("\n\nOdat (ixtiyoriy, faqat tabiiy bo'lsa): " + picked["text"]
+        has_media = bool(picked["emoji"] or picked["query"])
+        system += ("\n\nOdat (" + ("shu salomda tabiiy tilga ol, chunki unga rasm yoki stiker ilova qilinadi"
+                                   if has_media else "ixtiyoriy, faqat tabiiy bo'lsa")
+                   + "): " + picked["text"]
                    + habit_rule(get_odat_mode(frows)))
     if facts:
         system += ("\n\nFoydalanuvchi haqida bilganlaring ([muhim] eng muhim, doim e'tiborda; sog'liq va moliya haqidagilarni faqat o'zi so'ralganda ishlat):\n- "
@@ -319,6 +325,15 @@ async def greet(app, cid, kind, prompt_kind=None):
             # eslatildi: qayta eslatilmasin
             await asyncio.to_thread(del_fact, cid, nudged["id"])
         if picked:
+            # salom yuborildi: bugungi odat belgilanadi (kuniga bir marta)
+            try:
+                for x in frows:
+                    if x["fact"].startswith(ODATKUN_TAG):
+                        await asyncio.to_thread(del_fact, cid, x["id"])
+                await asyncio.to_thread(save_fact, cid,
+                                        ODATKUN_TAG + today + "] done")
+            except Exception as e:
+                print("ODAT belgi xato:", e)
             try:
                 if picked["emoji"]:
                     pack = await get_pack(app.bot, st)
