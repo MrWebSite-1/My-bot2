@@ -30,6 +30,7 @@ async def update_facts(cid):
             and not r["fact"].startswith("[botkayf ")
             and not r["fact"].startswith("[kecha ")
             and not r["fact"].startswith("[kunoxi ")
+            and not r["fact"].startswith("[odatkun ")
             and not r["fact"].startswith("[odatrejim] ")][-80:]
     today = datetime.now(TZ).strftime("%Y-%m-%d")
     old = "\n".join(f'{i}. {x["fact"]}'
