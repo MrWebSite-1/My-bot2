@@ -363,6 +363,13 @@ async def proactive_loop(app):
             print("PROAKTIV xato:", e)
         await asyncio.sleep(300)
 
+REM_TRIES = {}          # {eslatma id: urinishlar soni} (xotirada)
+REM_MAX_TRIES = 20      # ~10 daqiqa (sikl 30 s); undan keyin voz kechiladi
+
+def _rem_permanent(e):
+    """Qayta urinish foydasiz xatolar: bot bloklangan, chat topilmadi."""
+    return type(e).__name__ in ("Forbidden", "BadRequest", "ChatMigrated")
+
 async def reminder_loop(app):
     while True:
         try:
@@ -375,12 +382,22 @@ async def reminder_loop(app):
                         "⏰ 1 soat", callback_data=f"snz:{x['id']}:60")],
                     [InlineKeyboardButton(
                         "✅ Bajarildi", callback_data=f"ok:{x['id']}")]])
+                sent = False
                 try:
                     await app.bot.send_message(
                         x["chat_id"], "⏰ Eslatma: " + x["task"],
                         reply_markup=kb)
+                    sent = True
                 except Exception as e:
-                    print("Yuborish xato:", e)
+                    n = REM_TRIES.get(x["id"], 0) + 1
+                    REM_TRIES[x["id"]] = n
+                    print("Yuborish xato:", x["id"], n, e)
+                    if _rem_permanent(e) or n >= REM_MAX_TRIES:
+                        print("Eslatma tashlandi:", x["id"], e)
+                        sent = True   # qayta urinish foydasiz
+                if not sent:
+                    continue          # belgilanmaydi, keyingi siklda qayta
+                REM_TRIES.pop(x["id"], None)
                 if x.get("repeat") in REPEATS:
                     await asyncio.to_thread(
                         advance, x["id"], x["remind_at"], x["repeat"])
