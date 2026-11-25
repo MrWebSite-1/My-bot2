@@ -132,6 +132,8 @@ PEER_MODELS = ([_pm] if _pm else []) + FALLBACKS
 PROACTIVE_HOURS = (8, 23)
 PROACTIVE_PER_DAY = (3, 5)
 PROACTIVE_GAP = 75
+# Server o'chiq bo'lsa, kechikkan salom shuncha daqiqagacha hali yuboriladi
+SLOT_LATE_MAX_MIN = 240
 
 # B variant: ikki bot orasida xabar uzatish (relay)
 # PEER_URL: ikkinchi botning Render manzili (masalan https://my-bot2-xxxx.onrender.com)

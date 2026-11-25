@@ -9,7 +9,7 @@ from character import NAME, BASE, SLOT_PROMPTS, ANGLES
 from config import (TZ, STATE, REPEATS, CHAT_MODELS,
                     JIMLIK_HOURS, UNANSWERED_RETRY_H, JIMLIK_START, JIMLIK_END,
                     PROACTIVE_HOURS, PROACTIVE_PER_DAY,
-                    PROACTIVE_GAP)
+                    PROACTIVE_GAP, SLOT_LATE_MAX_MIN)
 from database import (get_recent, list_facts, get_history, get_settings,
                       last_user_time,
                       get_summary, save_msg, cleanup_db, proactive_chats,
@@ -366,8 +366,21 @@ async def proactive_loop(app):
                                     second=0, microsecond=0)
                     if t > now:
                         break
-                    if now - t > timedelta(minutes=30):
-                        continue  # eskirgan (server qayta ishga tushgan)
+                    late = now - t
+                    if late > timedelta(minutes=30):
+                        # Server o'chiq bo'lgan: kechikkan slot o'z oynasi
+                        # tugamaguncha bajariladi (faqat eng oxirgisi).
+                        if late > timedelta(minutes=SLOT_LATE_MAX_MIN):
+                            continue
+                        if any(t2 > t and t2 <= now for t2 in (
+                                now.replace(hour=m2 // 60, minute=m2 % 60,
+                                            second=0, microsecond=0)
+                                for m2 in day_plan(cid, day, row))):
+                            continue  # keyingi slot ham o'tgan: faqat oxirgisi
+                        h0 = t.hour
+                        if (h0 < 11 and now.hour >= 12) or (
+                                h0 < 18 and now.hour >= 19):
+                            continue  # o'z oynasidan chiqib ketgan
                     if last_dt and last_dt >= t:
                         continue  # bu vaqt allaqachon bajarilgan
                     await asyncio.to_thread(set_slot, cid, now.isoformat())

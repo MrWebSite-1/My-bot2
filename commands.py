@@ -336,12 +336,22 @@ async def yozish_holat(update, ctx):
     st = await asyncio.to_thread(get_settings, update.message.chat_id)
     mn = st.get("pro_min") or 3
     mx = st.get("pro_max") or 5
+    try:
+        from loops import day_plan
+        from config import TZ
+        from datetime import datetime
+        day = datetime.now(TZ).strftime("%Y-%m-%d")
+        pl = day_plan(update.message.chat_id, day, st)
+        plan_text = ", ".join(f"{m // 60:02d}:{m % 60:02d}" for m in pl) or "yo'q"
+    except Exception:
+        plan_text = "ko'rsatib bo'lmadi"
     await update.message.reply_text(
         "O'zim yozish sozlamalari:\n"
         f"• Kuniga: {mn}–{mx} marta\n"
         f"• Orasi: kamida {st.get('pro_gap') or 75} daqiqa\n"
         f"• Soatlar: {st.get('pro_from') or 8}:00–{st.get('pro_to') or 23}:00\n"
-        f"• Jimlik: {st.get('jimlik_h') or 8} soat\n\n"
+        f"• Jimlik: {st.get('jimlik_h') or 8} soat\n"
+        f"• Bugungi reja: {plan_text}\n\n"
         "O'zgartirish: /yozish, /yozish_oraliq, /yozish_saat, /jimlik")
 
 async def odat_qosh(update, ctx):
