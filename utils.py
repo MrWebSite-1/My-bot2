@@ -90,6 +90,7 @@ BOTKAYF_TAG = "[botkayf "
 KECHA_TAG = "[kecha "
 KUNOXI_TAG = "[kunoxi "
 ODATREJIM_TAG = "[odatrejim] "
+ODATKUN_TAG = "[odatkun "
 
 def auto_mood(cid, now=None):
     now = now or datetime.now(TZ)
@@ -177,22 +178,11 @@ def order_facts(rows, limit=60):
     rows = [x for x in rows if not x["fact"].startswith(KECHA_TAG)]
     rows = [x for x in rows if not x["fact"].startswith(KUNOXI_TAG)]
     rows = [x for x in rows if not x["fact"].startswith(ODATREJIM_TAG)]
+    rows = [x for x in rows if not x["fact"].startswith(ODATKUN_TAG)]
     muhim = [x for x in rows if tier_of(x["fact"]) == "muhim"][-40:]
     rest = [x for x in rows if tier_of(x["fact"]) != "muhim"]
     room = max(0, limit - len(muhim))
     return muhim + (rest[-room:] if room else [])
-
-
-def habit_text(cid):
-    """Kuniga ko'pi bilan bitta odat, ixtiyoriy eslatiladi. Voqea emas, doimiy xususiyat."""
-    from character import HABITS
-    day = datetime.now(TZ).strftime("%Y-%m-%d")
-    rnd = random.Random(f"habit-{cid}-{day}")
-    if rnd.random() > 0.4:
-        return ""
-    h = rnd.choice(HABITS)
-    return ("\n\nOdat (ixtiyoriy, faqat tabiiy bo'lsa): " + h + ". "
-            "Buni o'tgan zamondagi voqea qilib aytma, majburlama.")
 
 
 def parse_odat(fact):
