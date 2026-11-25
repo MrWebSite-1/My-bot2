@@ -103,7 +103,12 @@ async def kun_oxiri(app, cid):
         now.astimezone(timezone.utc).isoformat())
     if sum(1 for m in msgs if m["role"] == "user") < 4:
         return
-    await asyncio.to_thread(save_fact, cid, KUNOXI_TAG + day + "] done")
+    # xato bo'lsa keyingi siklda qayta uriniladi, lekin kuniga 3 martagacha
+    tries = STATE.setdefault("kunoxi_try", {})
+    key = (cid, day)
+    if tries.get(key, 0) >= 3:
+        return
+    tries[key] = tries.get(key, 0) + 1
     convo = "\n".join(f"{m['role']}: {m['content']}" for m in msgs[-60:])[:6000]
     prompt = ("Quyida bugungi suhbat. Sen " + NAME + ": iliq va samimiy. Bugungi suhbatni "
               "eslab, 2-3 gapli qisqa kun oxiri xabari yoz (o'zbekcha): bugun nima "
@@ -126,6 +131,8 @@ async def kun_oxiri(app, cid):
         pass
     await asyncio.sleep(2)
     await app.bot.send_message(cid, text)
+    # belgi faqat muvaffaqiyatli yuborilgandan keyin qo'yiladi
+    await asyncio.to_thread(save_fact, cid, KUNOXI_TAG + day + "] done")
     await asyncio.to_thread(save_msg, cid, "model", text)
 
 def pick_habit(cid, frows):
@@ -213,6 +220,12 @@ async def greet(app, cid, kind, prompt_kind=None):
     recent = await asyncio.to_thread(get_recent, cid, 3)
     frows = await asyncio.to_thread(list_facts, cid)
     ev = event_context(frows, kind)
+    today = datetime.now(TZ).strftime("%Y-%m-%d")
+    kunoxi_tag = KUNOXI_TAG + today
+    if kind == "kechqurun" and any(
+            x["fact"].startswith(kunoxi_tag) for x in frows):
+        print("KECHQURUN salom o'tkazildi: bugun kun oxiri/kechqurun bor", cid)
+        return
     # oxirgi ketma-ket bot xabarlari soni (3 gacha sanaladi)
     tail = 0
     for m in reversed(recent):
@@ -298,6 +311,10 @@ async def greet(app, cid, kind, prompt_kind=None):
         await asyncio.sleep(min(3, 1 + len(text) / 120))
         await app.bot.send_message(cid, text)
         await asyncio.to_thread(save_msg, cid, "model", text)
+        if kind == "kechqurun":
+            # shu kechada kun oxiri xabari ikkinchi marta chiqmasin
+            await asyncio.to_thread(
+                save_fact, cid, kunoxi_tag + "] salom")
         if nudged is not None:
             # eslatildi: qayta eslatilmasin
             await asyncio.to_thread(del_fact, cid, nudged["id"])
