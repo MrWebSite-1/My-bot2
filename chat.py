@@ -14,7 +14,8 @@ from telegram import ReactionTypeEmoji
 from ai import gen, SAFETY
 from character import BASE, RULES
 from database import set_open_topic, clear_open_topics
-from config import (TZ, UTC_FMT, REPEATS, CHAT_MODELS, IMAGES_ON)
+from config import (TZ, UTC_FMT, REPEATS, CHAT_MODELS, IMAGES_ON, STICKER_PRIMARY_P)
+from utils import primary_pack
 from database import (ensure_settings, get_settings, get_history,
                       list_facts, get_summary, save_msg, save_fact,
                       del_fact, save_reminder, update_setting)
@@ -495,8 +496,11 @@ async def _handle_core(update, ctx, gx):
         has_image = isinstance(img, dict) and bool(img.get("query"))
         if isinstance(stk, str) and pack.get(stk.strip()) and not has_image:
             try:
-                await msg.reply_sticker(
-                    random.choice(pack[stk.strip()]))
+                choices = pack[stk.strip()]
+                prim = primary_pack(st).get(stk.strip())
+                if prim and random.random() < STICKER_PRIMARY_P:
+                    choices = prim  # asosiy paketdan (50%)
+                await msg.reply_sticker(random.choice(choices))
             except Exception as e:
                 print("STIKER xato:", e)
         await maybe_extract(cid)

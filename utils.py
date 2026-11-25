@@ -63,6 +63,14 @@ async def get_pack(bot, st):
     return merged
 
 
+def primary_pack(st):
+    """Asosiy paket (ro'yxatdagi birinchi) stikerlari, emotsiya bo'yicha. get_pack dan keyin chaqiriladi."""
+    names = [x.strip() for x in str((st or {}).get("sticker_set") or "").split(",") if x.strip()]
+    if not names or (st or {}).get("stickers") is False:
+        return {}
+    return STATE.get("packs", {}).get(names[0], {})
+
+
 def mark(cur, key, label):
     return ("✔ " if cur == key else "") + label
 

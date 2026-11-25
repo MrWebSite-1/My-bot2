@@ -78,6 +78,8 @@ STATE = {}
 PIXABAY_KEY = os.environ.get("PIXABAY_API_KEY", "")
 
 IMAGES_ON = True
+# Stiker tanlash: asosiy (birinchi) paketdan ehtimoli (qolgani boshqa paketlardan)
+STICKER_PRIMARY_P = 0.5
 
 SLOTS = [("ertalab", 9), ("tushlik", 13), ("kechqurun", 21)]
 
