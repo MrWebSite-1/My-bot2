@@ -71,7 +71,7 @@ def _fact_tail(x):
 def _tier_of_row(fact):
     if fact.startswith("[odat]"):
         return "odat"
-    if fact.startswith(("[botkayf ", "[kecha ", "[kunoxi ", "[odatrejim] ")):
+    if fact.startswith(("[botkayf ", "[kecha ", "[kunoxi ", "[odatrejim] ", "[odatkun ")):
         return "boshqa"
     return "holat" if fact.startswith(STATE_TAG) else tier_of(fact)
 
@@ -516,7 +516,7 @@ async def eksport_cmd(update, ctx):
     prefixes = ("[muhim] ", "[oddiy] ", "[yengil] ")
     for x in rows:
         f = x["fact"]
-        if f.startswith(("[holat ", "[botkayf ", "[kecha ", "[kunoxi ")):
+        if f.startswith(("[holat ", "[botkayf ", "[kecha ", "[kunoxi ", "[odatkun ")):
             continue
         if f.startswith("[odat] "):
             e, t, q = parse_odat(f)
