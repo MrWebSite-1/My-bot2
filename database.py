@@ -116,7 +116,7 @@ def set_proactive(cid, on):
         on_conflict="chat_id").execute()
 
 def get_recent(cid, limit):
-    r = (db.table("messages").select("role,content")
+    r = (db.table("messages").select("role,content,created_at")
          .eq("chat_id", cid).order("id", desc=True)
          .limit(limit).execute())
     return list(reversed(r.data))

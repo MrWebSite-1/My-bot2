@@ -7,7 +7,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from ai import gen
 from character import NAME, BASE, SLOT_PROMPTS, ANGLES
 from config import (TZ, STATE, REPEATS, CHAT_MODELS,
-                    JIMLIK_HOURS, JIMLIK_START, JIMLIK_END,
+                    JIMLIK_HOURS, UNANSWERED_RETRY_H, JIMLIK_START, JIMLIK_END,
                     PROACTIVE_HOURS, PROACTIVE_PER_DAY,
                     PROACTIVE_GAP)
 from database import (get_recent, list_facts, get_history, get_settings,
@@ -194,17 +194,41 @@ def _alive(x):
         return True
 
 
+def unanswered_old_enough(msg):
+    """Oxirgi bot xabaridan UNANSWERED_RETRY_H soat o'tdimi."""
+    if not UNANSWERED_RETRY_H:
+        return False
+    try:
+        t = datetime.fromisoformat(
+            str(msg.get("created_at")).replace("Z", "+00:00"))
+    except Exception:
+        return False
+    return (datetime.now(timezone.utc) - t >=
+            timedelta(hours=UNANSWERED_RETRY_H))
+
+
 async def greet(app, cid, kind, prompt_kind=None):
     if cid < 0:
         return  # guruhda o'zi yozmaydi
-    recent = await asyncio.to_thread(get_recent, cid, 2)
+    recent = await asyncio.to_thread(get_recent, cid, 3)
     frows = await asyncio.to_thread(list_facts, cid)
     ev = event_context(frows, kind)
-    unanswered = (len(recent) == 2 and
-                  all(m["role"] == "model" for m in recent))
+    # oxirgi ketma-ket bot xabarlari soni (3 gacha sanaladi)
+    tail = 0
+    for m in reversed(recent):
+        if m["role"] != "model":
+            break
+        tail += 1
+    unanswered = tail >= 2
+    followup = False
     if unanswered and not ev:
-        print("SALOM o'tkazib yuborildi: javob yo'q", cid)
-        return
+        # Javob yo'q. Faqat 2 ta yozilgan bo'lsa va oxirgisidan
+        # UNANSWERED_RETRY_H soat o'tgan bo'lsa, BIR marta qo'shimcha eslatadi.
+        if tail == 2 and unanswered_old_enough(recent[-1]):
+            followup = True
+        else:
+            print("SALOM o'tkazib yuborildi: javob yo'q", cid)
+            return
     if not ev and random.random() < 0.1:
         print("SALOM tasodifan o'tkazildi", cid)
         return
@@ -255,6 +279,10 @@ async def greet(app, cid, kind, prompt_kind=None):
         prompt += "\n\nMUHIM: " + ev
     else:
         prompt += "\n\nBu safar: " + random.choice(ANGLES) + "."
+    if followup:
+        prompt += ("\n\nFoydalanuvchi bir kundan beri javob bermadi. Bu "
+                   "yengil, bosimsiz bitta eslatma: qisqa yoz, aybdor qilma, "
+                   "savol bilan tugatma shart emas.")
     prompt += ("\n\nOldingi xabarlaringdagi gaplarni "
                "takrorlama.\n\nOxirgi suhbat:\n" + hist)
     r = await gen(

@@ -85,6 +85,9 @@ SLOTS = [("ertalab", 9), ("tushlik", 13), ("kechqurun", 21)]
 
 # Uzoq jimlikdan keyin botning o'zi yozishi
 JIMLIK_HOURS = 8
+# Siz javob bermasangiz (bot ketma-ket 2 ta yozgan): shuncha soatdan keyin
+# BIR marta qo'shimcha eslatadi, keyin siz yozguncha jim turadi. 0 = o'chiq.
+UNANSWERED_RETRY_H = 24
 JIMLIK_START = 10
 JIMLIK_END = 22
 
