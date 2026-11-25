@@ -20,7 +20,8 @@ from database import save_fact, list_facts
 from ai import gen, SAFETY
 from database import (get_settings, update_setting, save_msg, get_history,
                       list_facts)
-from utils import parse_json, order_facts, today_state, today_mood
+from utils import (parse_json, order_facts, today_state, today_mood,
+                   is_peer_line)
 from guard import addressed
 
 # Ustun nomlari bazada; kalitlar kodda
@@ -387,6 +388,35 @@ def peer_answered(cid, owner_mid):
 
 
 # ---------- sizsiz gaplashuv ----------
+# Oxirgi odam xabaridan keyin shuncha bot xabari bo'lsa, mustaqil gaplashuv
+# yangi zanjir boshlamaydi (odam yozguncha to'xtaydi).
+AUTO_TAIL_MAX = 4
+
+
+def human_tail(history):
+    """(odam yozganmi, oxirgi odam xabaridan keyingi bot xabarlari soni).
+    Bot xabari: o'zining javobi (model) yoki ikkinchi botning '[Ism]: ...' qatori."""
+    n = 0
+    for h in reversed(history):
+        c = h.get("content") or ""
+        if h.get("role") == "user" and not is_peer_line(c):
+            return True, n
+        n += 1
+    return False, n
+
+
+async def human_active(cid):
+    """Mustaqil gaplashuv uchun: guruhda odam yozganmi va undan keyin botlar
+    hali haddan ko'p gaplashmaganmi. Tarixni o'qib bo'lmasa False (jim turamiz)."""
+    try:
+        history = await asyncio.to_thread(get_history, cid)
+    except Exception as e:
+        print("AVTO tarix xato:", repr(e))
+        return False
+    has_human, tail = human_tail(history)
+    return has_human and tail < AUTO_TAIL_MAX
+
+
 async def auto_tick(app, cid, row, now):
     """loops.py dan chaqiriladi (guruh chatlari uchun)."""
     if cid not in ALLOWED_CHATS or not PEER_URL:
@@ -401,6 +431,8 @@ async def auto_tick(app, cid, row, now):
         return
     if random.random() > 0.5:   # ikkala bot ham tekshiradi, bittasi boshlasin
         return
+    if not await human_active(cid):
+        return   # odam yozmagan (oxirgi xabarlar faqat botlardan): to'xtaymiz
     STATE["auto_last"][cid] = time.time()
     chain = f"auto{int(time.time())}"
     async with lock(cid):
