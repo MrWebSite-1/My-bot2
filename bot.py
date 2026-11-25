@@ -22,6 +22,7 @@ from commands import (forget, list_rem, cancel, msg_on, msg_off, my_id,
 
 from commands import memory_muhim, memory_oddiy, memory_holat
 from commands import holat_cmd, eksport_cmd, odat_rejim_cmd
+from commands import sticker_list_cmd, sticker_add_cmd, sticker_del_cmd
 from commands import (yozish_cmd, oraliq_cmd, saat_cmd, jimlik_cmd,
                       yozish_holat, odat_qosh, odatlar, odat_ochir,
                       kayfiyat_cmd, kayfiyat_qoy, kayfiyat_tozala)
@@ -32,6 +33,9 @@ from telegram import BotCommand
 MENU = {'id': "Telegram ID'ingiz", 'unut': "Hamma xotirani o'chirish", 'holat': 'Bot holati va bugungi sarf', 'eslatmalar': "Eslatmalar ro'yxati", 'bekor': 'Eslatmani bekor qilish: /bekor 3', 'xabar_bor': "O'zi yozishni yoqish", 'xabar_yoq': "O'zi yozishni o'chirish", 'xotira': "Xotira bo'limlari", 'xotira_muhim': 'Muhim faktlar', 'xotira_oddiy': 'Oddiy faktlar', 'xotira_holat': 'Bugungi holat', 'fakt_ochir': "Faktni o'chirish: /fakt_ochir 2", 'eslab_qol': "Fakt qo'shish: /eslab_qol matn", 'odat_qosh': "Odat qo'shish", 'odatlar': "Odatlar ro'yxati", 'odat_ochir': "Odatni o'chirish: /odat_ochir 2", 'yozish': 'Kuniga necha marta yozish', 'yozish_oraliq': 'Xabarlar orasi (daqiqa)', 'yozish_saat': 'Yozish soatlari', 'jimlik': 'Necha soat yozmasangiz yozish', 'yozish_holat': 'Yozish sozlamalari', 'kayfiyat': 'Hozirgi kayfiyat', 'kayfiyat_qoy': "Kayfiyatni qo'yish", 'kayfiyat_tozala': "Qo'lda kayfiyatni olib tashlash", 'uslub': 'Javob uslubi', 'ovoz': 'Ovoz sozlamalari', 'ovoz_test': 'Ovozlarni sinash', 'stiker_paket': 'Stiker paketini tanlash', 'stiker_yoq': "Stikerlarni o'chirish", 'stiker_bor': 'Stikerlarni yoqish', 'xulosa': 'Suhbat xulosasi', 'yangila': 'Faktlarni yangilash'}
 
 MENU["eksport"] = "Ma'lumotni fayl qilib olish"
+MENU["stiker_royxat"] = "Stiker paketlari ro'yxati"
+MENU["stiker_qosh"] = "Stiker paketi qo'shish: /stiker_qosh <nom>"
+MENU["stiker_ochir"] = "Stiker paketini o'chirish: /stiker_ochir <nom>"
 MENU["odat_rejim"] = "Odat rejimi: A, B, AB yoki yoq"
 MENU.update({
     "botlar": "Guruhda botlar sozlamalari",
@@ -93,6 +97,9 @@ COMMANDS = [
     ("stiker_paket", sticker_pack_cmd),
     ("stiker_yoq", sticker_off),
     ("stiker_bor", sticker_on),
+    ("stiker_royxat", sticker_list_cmd),
+    ("stiker_qosh", sticker_add_cmd),
+    ("stiker_ochir", sticker_del_cmd),
     ("xulosa", summary_cmd),
     ("yangila", refresh_cmd),
     ("botlar", botlar_cmd),

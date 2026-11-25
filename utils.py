@@ -31,23 +31,29 @@ def style_text(st):
     return ("\n\n" + extra) if extra else ""
 
 async def get_pack(bot, st):
-    name = (st or {}).get("sticker_set")
-    if not name or st.get("stickers") is False:
+    """Bir nechta paketni (vergul bilan) birlashtirib, emotsiya bo'yicha qaytaradi."""
+    raw = (st or {}).get("sticker_set") or ""
+    names = [x.strip() for x in str(raw).split(",") if x.strip()]
+    if not names or (st or {}).get("stickers") is False:
         return {}
     cache = STATE.setdefault("packs", {})
-    if name in cache:
-        return cache[name]
-    try:
-        ss = await bot.get_sticker_set(name)
-        d = {}
-        for x in ss.stickers:
-            if x.emoji:
-                d.setdefault(x.emoji, []).append(x.file_id)
-        cache[name] = d
-        return d
-    except Exception as e:
-        print("PAKET xato:", e)
-        return {}
+    merged = {}
+    for name in names[:5]:
+        if name not in cache:
+            try:
+                ss = await bot.get_sticker_set(name)
+                d = {}
+                for x in ss.stickers:
+                    if x.emoji:
+                        d.setdefault(x.emoji, []).append(x.file_id)
+                cache[name] = d
+            except Exception as e:
+                print("PAKET xato:", name, e)
+                continue
+        for k, v in cache[name].items():
+            merged.setdefault(k, []).extend(v)
+    return merged
+
 
 def mark(cur, key, label):
     return ("✔ " if cur == key else "") + label

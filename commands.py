@@ -568,3 +568,74 @@ async def odat_rejim_cmd(update, ctx):
     val = "yoq" if arg == "YOQ" else arg
     await asyncio.to_thread(save_fact, cid, ODATREJIM_TAG + val)
     await update.message.reply_text(f"Odat rejimi endi: {val}")
+
+
+def _pack_names(st):
+    return [x.strip() for x in str((st or {}).get("sticker_set") or "").split(",") if x.strip()]
+
+
+async def sticker_list_cmd(update, ctx):
+    cid = update.message.chat_id
+    st = await asyncio.to_thread(get_settings, cid)
+    names = _pack_names(st)
+    state = "yoqilgan" if st.get("stickers") is not False else "o'chirilgan"
+    if not names:
+        await update.message.reply_text(
+            f"Stiker paketi yo'q (stikerlar {state}). Qo'shish: /stiker_qosh <nom>")
+        return
+    lines = [f"Stikerlar: {state}. Paketlar ({len(names)}/5):"]
+    for i, n in enumerate(names, 1):
+        lines.append(f"{i}. {n}  (t.me/addstickers/{n})")
+    lines.append("Qo'shish: /stiker_qosh <nom>\nO'chirish: /stiker_ochir <nom>")
+    await update.message.reply_text("\n".join(lines))
+
+
+async def sticker_add_cmd(update, ctx):
+    cid = update.message.chat_id
+    arg = " ".join(ctx.args).strip().rstrip("/")
+    if not arg:
+        await update.message.reply_text(
+            "Ishlatish: /stiker_qosh <nom yoki t.me/addstickers/... havolasi>")
+        return
+    name = arg.split("/")[-1]
+    st = await asyncio.to_thread(get_settings, cid)
+    names = _pack_names(st)
+    if name in names:
+        await update.message.reply_text("Bu paket allaqachon ro'yxatda.")
+        return
+    if len(names) >= 5:
+        await update.message.reply_text(
+            "Ko'pi bilan 5 ta paket. Avval birini o'chiring: /stiker_ochir <nom>")
+        return
+    try:
+        ss = await ctx.bot.get_sticker_set(name)
+    except Exception:
+        await update.message.reply_text("Bunday stiker paketi topilmadi.")
+        return
+    names.append(name)
+    await asyncio.to_thread(update_setting, cid, "sticker_set", ",".join(names))
+    await asyncio.to_thread(update_setting, cid, "stickers", True)
+    STATE.get("packs", {}).pop(name, None)
+    await update.message.reply_text(
+        f"Qo'shildi: {name} ({len(ss.stickers)} ta stiker). Jami {len(names)} paket.")
+
+
+async def sticker_del_cmd(update, ctx):
+    cid = update.message.chat_id
+    arg = " ".join(ctx.args).strip().rstrip("/")
+    if not arg:
+        await update.message.reply_text(
+            "Ishlatish: /stiker_ochir <nom> (ro'yxat: /stiker_royxat)")
+        return
+    name = arg.split("/")[-1]
+    st = await asyncio.to_thread(get_settings, cid)
+    names = _pack_names(st)
+    if name not in names:
+        await update.message.reply_text(
+            "Bu paket ro'yxatda yo'q. Ro'yxat: /stiker_royxat")
+        return
+    names.remove(name)
+    await asyncio.to_thread(update_setting, cid, "sticker_set", ",".join(names))
+    STATE.get("packs", {}).pop(name, None)
+    await update.message.reply_text(
+        f"O'chirildi: {name}. Qolgan paketlar: {len(names)}.")
