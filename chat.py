@@ -34,7 +34,10 @@ async def build_system(cid, st, pack, msg, vm, frows, state=None, mood_over=None
     facts = [f'{i}. {x["fact"]}' for i, x in enumerate(frows, 1)]
     now = datetime.now(TZ)
     system = (BASE + RULES + "\n\nHozirgi Toshkent vaqti: "
-              + time_text(now))
+              + time_text(now)
+              + f"\nAniq hozirgi sana va vaqt: {now:%Y-%m-%d %H:%M} (Toshkent). "
+              "Eslatma vaqti (reminder.time) shu vaqtdan KEYIN bo'lsin; "
+              "'5 daqiqadan keyin' bo'lsa, hozirgi vaqtga 5 daqiqa qo'shing.")
     system += style_text(st)
     system += intimacy_text(await asyncio.to_thread(count_user_messages, cid))
     system += mood_text(cid, mood_over)
