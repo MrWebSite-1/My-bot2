@@ -607,7 +607,7 @@ async def sticker_list_cmd(update, ctx):
             info = f"{len(its)} stiker, {emo} xil emoji, belgilangan {done}"
         else:
             info = "YUKLANMADI (nom noto'g'ri yoki paket o'chgan)"
-        lines.append(f"{i}. {n}{mark_}\n   {info}")
+        lines.append(f"{i}. {n}  (t.me/addstickers/{n}){mark_}\n   {info}")
     lines.append("Qo'shish: /stiker_qosh <nom>\nO'chirish: /stiker_ochir <nom>\n"
                  "Belgilash: /stiker_belgila (asosiy paket) yoki /stiker_belgila hammasi")
     await update.message.reply_text("\n".join(lines))
