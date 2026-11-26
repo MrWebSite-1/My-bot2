@@ -2,7 +2,7 @@
 """
 import asyncio, json, random, re
 from datetime import datetime
-from config import STATE, STYLES, TZ
+from config import STATE, STYLES, TZ, STICKER_PRIMARY_P
 from character import MOODS
 
 def parse_json(t):
@@ -30,32 +30,92 @@ def style_text(st):
     extra = STYLES.get(key, STYLES["muloyim"])[1]
     return ("\n\n" + extra) if extra else ""
 
+def _ne(e):
+    """Emojini taqqoslash uchun: ko'rinmas FE0F belgisiz, bo'shliqsiz."""
+    return str(e or "").replace("\ufe0f", "").strip()
+
+
+# Stiker belgilari (hissiyot). Bitta paketda stikerlar emojisi bir xil bo'lsa ham
+# ular belgilanadi (/stiker_belgila) va model emoji o'rniga shu so'zni tanlaydi.
+STICKER_LABELS = ["sevinch", "kulgi", "erkalash", "xafa", "yig'lash", "jahl",
+                  "hayron", "uyqu", "uyalish", "ma'qullash", "salomlashish",
+                  "o'ylash", "boshqa"]
+_LABEL_EMOJI = {
+    "sevinch": "😊 😄 😃 😀 🙂 😌 🥳 🎉 🤩 ✨ 🌟 😁",
+    "kulgi": "😂 🤣 😆 😹 😜 😝 🤪 😏 😎 😈",
+    "erkalash": "🥰 😍 😘 ❤ 💕 💖 💗 💘 💞 🤗 😚 😙 💋 🫶 💝",
+    "xafa": "😔 😞 😟 🙁 ☹ 😕 🥺 😒 🙄 😑 😐 😩 😫 😓",
+    "yig'lash": "😢 😭 🥲 😿 💔 😥",
+    "jahl": "😠 😡 🤬 😤 👿 😾 💢",
+    "hayron": "😮 😲 😱 😳 🤯 😨 😧 🙀 😯 🤨 😵",
+    "uyqu": "😴 🥱 😪 💤 🛌",
+    "uyalish": "🙈 😅 ☺ 🫣 😶 😬 🤭",
+    "ma'qullash": "👍 👌 ✅ 👏 🙌 💪 🫡 🆒 🙏 💯 🔥",
+    "salomlashish": "👋 🤝 ✌ 🖐 🤚 🤙",
+    "o'ylash": "🤔 🧐 🤓 💭 🫤",
+}
+EMOJI_LABEL = {_ne(e): lab for lab, es in _LABEL_EMOJI.items() for e in es.split()}
+
+
+def pack_names(st):
+    return [x.strip() for x in str((st or {}).get("sticker_set") or "").split(",") if x.strip()]
+
+
+def labels_of(st):
+    """Saqlangan belgilar: {paket: {stiker_uid: belgi}} (settings.sticker_labels)."""
+    raw = (st or {}).get("sticker_labels")
+    if isinstance(raw, dict):
+        return raw
+    try:
+        d = json.loads(raw) if raw else {}
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
 async def _load_pack(bot, name):
     try:
         ss = await bot.get_sticker_set(name)
-        d = {}
+        d, items = {}, []
         for x in ss.stickers:
+            if getattr(x, "type", None) == "custom_emoji":
+                continue  # oddiy stiker sifatida yuborib bo'lmaydi
             if x.emoji:
                 d.setdefault(x.emoji, []).append(x.file_id)
-        return name, d
+            th = getattr(x, "thumbnail", None)
+            items.append({
+                "fid": x.file_id, "uid": getattr(x, "file_unique_id", None) or x.file_id,
+                "emoji": _ne(x.emoji),
+                "anim": bool(getattr(x, "is_animated", False) or getattr(x, "is_video", False)),
+                "thumb": getattr(th, "file_id", None) if th else None})
+        print("PAKET yuklandi:", name, len(items), "stiker,", len(d), "xil emoji")
+        return name, d, items
     except Exception as e:
         print("PAKET xato:", name, e)
-        return name, None
+        return name, None, None
+
+
+async def ensure_packs(bot, names):
+    """Keshda yo'q paketlarni bir vaqtda yuklaydi. Yuklanganlar ro'yxatini qaytaradi."""
+    cache = STATE.setdefault("packs", {})
+    cache_i = STATE.setdefault("packitems", {})
+    missing = [n for n in names if n not in cache or n not in cache_i]
+    if missing:
+        for name, d, items in await asyncio.gather(*(_load_pack(bot, n) for n in missing)):
+            if d is not None:
+                cache[name] = d
+                cache_i[name] = items
+    return [n for n in names if n in cache and n in cache_i]
 
 
 async def get_pack(bot, st):
     """Barcha paketlarni (vergul bilan) birlashtirib, emotsiya bo'yicha qaytaradi.
     Keshda yo'q paketlar bir vaqtda yuklanadi."""
-    raw = (st or {}).get("sticker_set") or ""
-    names = [x.strip() for x in str(raw).split(",") if x.strip()]
+    names = pack_names(st)
     if not names or (st or {}).get("stickers") is False:
         return {}
-    cache = STATE.setdefault("packs", {})
-    missing = [n for n in names if n not in cache]
-    if missing:
-        for name, d in await asyncio.gather(*(_load_pack(bot, n) for n in missing)):
-            if d is not None:
-                cache[name] = d
+    await ensure_packs(bot, names)
+    cache = STATE.get("packs", {})
     merged = {}
     for name in names:
         for k, v in cache.get(name, {}).items():
@@ -65,10 +125,147 @@ async def get_pack(bot, st):
 
 def primary_pack(st):
     """Asosiy paket (ro'yxatdagi birinchi) stikerlari, emotsiya bo'yicha. get_pack dan keyin chaqiriladi."""
-    names = [x.strip() for x in str((st or {}).get("sticker_set") or "").split(",") if x.strip()]
+    names = pack_names(st)
     if not names or (st or {}).get("stickers") is False:
         return {}
     return STATE.get("packs", {}).get(names[0], {})
+
+
+def sticker_prompt(st, pack):
+    """Modelga stiker tanlash ko'rsatmasi: belgilangan paketlardan so'zlar,
+    belgilanmaganlardan emojilar. Stiker har javobga emas."""
+    if not pack:
+        return ""
+    labs = labels_of(st)
+    items = STATE.get("packitems", {})
+    words, emojis = [], []
+    for n in pack_names(st):
+        lm = labs.get(n) or {}
+        if lm:
+            for lab in STICKER_LABELS[:-1] + ["boshqa"]:
+                if lab in lm.values() and lab not in words:
+                    words.append(lab)
+        else:
+            for e in (STATE.get("packs", {}).get(n) or {}):
+                if e not in emojis:
+                    emojis.append(e)
+    options = words + emojis[:max(10, 40 - len(words))]
+    if not options:
+        return ""
+    return ("\n\nStiker: javobingga mos stiker yuborish uchun sticker maydoniga "
+            "quyidagi so'zlar yoki emojilardan BITTASINI yoz: " + " ".join(options)
+            + ". Stikerni har javobga emas, faqat his aniq bo'lganda (quvonch, "
+            "erkalash, hayrat, xafalik, hazil) ishlat: taxminan har 3-4 "
+            "javobning birida. Qolgan paytda sticker null bo'lsin.")
+
+
+def choose_sticker(st, stk):
+    """Avval paket tanlanadi (asosiy paket STICKER_PRIMARY_P ehtimol bilan), keyin
+    shu paketdan modelning so'ziga/emojisiga mos stiker; mos kelmasa paketdan
+    tasodifiy. Qaytaradi: (paket nomi, file_id) yoki None."""
+    key = str(stk or "").strip()
+    if not key:
+        return None
+    names = pack_names(st)
+    items = STATE.get("packitems", {})
+    loaded = [n for n in names if items.get(n)]
+    if not loaded:
+        return None
+    primary = names[0] if items.get(names[0]) else None
+    others = [n for n in loaded if n != primary]
+    if primary and (not others or random.random() < STICKER_PRIMARY_P):
+        pk = primary
+    else:
+        pk = random.choice(others or loaded)
+    its = items[pk]
+    lm = labels_of(st).get(pk) or {}
+    low = key.lower().replace("\u2019", "'").replace("\u02bb", "'").replace("`", "'")
+    if low in STICKER_LABELS:
+        if lm:
+            cands = [i for i in its if lm.get(i["uid"]) == low]
+        else:
+            cands = [i for i in its if EMOJI_LABEL.get(i["emoji"]) == low]
+    else:
+        ne = _ne(key)
+        cands = [i for i in its if i["emoji"] == ne]
+        if not cands and lm and EMOJI_LABEL.get(ne):
+            cands = [i for i in its if lm.get(i["uid"]) == EMOJI_LABEL[ne]]
+    return pk, random.choice(cands or its)["fid"]
+
+
+async def _sticker_image(bot, it):
+    """Belgilash uchun stikerning rasmi (animatsiyali bo'lsa kichik rasmi)."""
+    from google.genai import types
+    fid = it["thumb"] if it["anim"] else it["fid"]
+    if not fid:
+        return None
+    f = await bot.get_file(fid)
+    raw = bytes(await f.download_as_bytearray())
+    ext = (f.file_path or "").lower().rsplit(".", 1)[-1]
+    mime = {"webp": "image/webp", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+            "png": "image/png"}.get(ext)
+    if not mime or len(raw) > 4000000:
+        return None
+    return types.Part.from_bytes(data=raw, mime_type=mime)
+
+
+async def label_pack(bot, cid, st, name, save, batch=10):
+    """Paketdagi belgilanmagan stikerlarni Gemini bilan belgilaydi (10 tadan so'rov).
+    save(cid, matn) har bo'lakdan keyin saqlaydi. st['sticker_labels'] yangilanadi.
+    Qaytaradi: (belgilar soni {belgi: n}, belgilanmay qolganlar soni)."""
+    from google.genai import types
+    from ai import gen, SAFETY
+    from config import CHAT_MODELS
+    if name not in await ensure_packs(bot, [name]):
+        raise RuntimeError("paket yuklanmadi")
+    items = STATE["packitems"][name]
+    allv = labels_of(st)
+    cur = dict(allv.get(name) or {})
+    todo = [i for i in items if i["uid"] not in cur]
+    for k in range(0, len(todo), batch):
+        chunk = todo[k:k + batch]
+        imgs = []
+        for it in chunk:
+            try:
+                part = await _sticker_image(bot, it)
+            except Exception as e:
+                print("BELGILASH rasm xato:", e)
+                part = None
+            if part is not None:
+                imgs.append((it, part))
+        if not imgs:
+            continue
+        prompt = ("Quyida %d ta stiker rasmi tartib bilan. Har birining hissiyotini "
+                  "quyidagi so'zlardan FAQAT BIRI bilan belgila: %s. Faqat JSON "
+                  'qaytar: {"labels": ["so\'z", ...]}, rasmlar tartibida, aynan %d ta.'
+                  % (len(imgs), ", ".join(STICKER_LABELS), len(imgs)))
+        parts = [types.Part(text=prompt)]
+        for n, (_, part) in enumerate(imgs, 1):
+            parts += [types.Part(text="%d-rasm:" % n), part]
+        try:
+            r = await gen(models=CHAT_MODELS, contents=[types.Content(role="user", parts=parts)],
+                          config=types.GenerateContentConfig(
+                              temperature=0.2, safety_settings=SAFETY,
+                              response_mime_type="application/json"))
+            labs = (parse_json(r.text) or {}).get("labels")
+        except Exception as e:
+            print("BELGILASH xato:", repr(e))
+            continue
+        if not isinstance(labs, list) or len(labs) != len(imgs):
+            print("BELGILASH: javob soni mos emas")
+            continue
+        for (it, _), lab in zip(imgs, labs):
+            lab = str(lab or "").strip().lower().replace("\u2019", "'")
+            cur[it["uid"]] = lab if lab in STICKER_LABELS else "boshqa"
+        allv[name] = cur
+        st["sticker_labels"] = json.dumps(allv, ensure_ascii=False)
+        await save(cid, st["sticker_labels"])
+    counts = {}
+    for it in items:
+        lab = cur.get(it["uid"])
+        if lab:
+            counts[lab] = counts.get(lab, 0) + 1
+    return counts, sum(1 for it in items if it["uid"] not in cur)
 
 
 def mark(cur, key, label):

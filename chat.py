@@ -15,7 +15,7 @@ from ai import gen, SAFETY
 from character import BASE, RULES
 from database import set_open_topic, clear_open_topics
 from config import (TZ, UTC_FMT, REPEATS, CHAT_MODELS, IMAGES_ON, STICKER_PRIMARY_P)
-from utils import primary_pack
+from utils import choose_sticker, sticker_prompt
 from database import (ensure_settings, get_settings, get_history,
                       list_facts, get_summary, save_msg, save_fact,
                       del_fact, save_reminder, update_setting)
@@ -48,13 +48,7 @@ async def build_system(cid, st, pack, msg, vm, frows, state=None, mood_over=None
                    "varianti; tabiiy pauzalar uchun vergul va "
                    "nuqta ishlat, raqam va sanalarni so'z bilan "
                    "yoz.")
-    if pack:
-        system += ("\n\nStiker: javobingga mos stiker "
-                   "yuborish uchun sticker maydoniga quyidagi "
-                   "emojilardan BITTASINI yoz (cheklov yo'q, "
-                   "kayfiyatga qarab xohlagancha ishlat), "
-                   "kerak bo'lmasa null: "
-                   + " ".join(list(pack)[:40]))
+    system += sticker_prompt(st, pack)
     if IMAGES_ON:
         system += ("\n\nRasm yuborish: foydalanuvchi biror "
                    "narsaning haqiqiy rasmini ko'rsatishni "
@@ -505,13 +499,12 @@ async def _handle_core(update, ctx, gx):
             except Exception as e:
                 print("RASM xato:", e)
         has_image = isinstance(img, dict) and bool(img.get("query"))
-        if isinstance(stk, str) and pack.get(stk.strip()) and not has_image:
+        if isinstance(stk, str) and stk.strip() and pack and not has_image:
             try:
-                choices = pack[stk.strip()]
-                prim = primary_pack(st).get(stk.strip())
-                if prim and random.random() < STICKER_PRIMARY_P:
-                    choices = prim  # asosiy paketdan (50%)
-                await msg.reply_sticker(random.choice(choices))
+                got = choose_sticker(st, stk)
+                if got:
+                    await msg.reply_sticker(got[1])
+                    print("STIKER:", got[0], stk.strip()[:20])
             except Exception as e:
                 print("STIKER xato:", e)
         await maybe_extract(cid)

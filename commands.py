@@ -585,6 +585,7 @@ def _pack_names(st):
 
 
 async def sticker_list_cmd(update, ctx):
+    from utils import ensure_packs, labels_of
     cid = update.message.chat_id
     st = await asyncio.to_thread(get_settings, cid)
     names = _pack_names(st)
@@ -593,12 +594,81 @@ async def sticker_list_cmd(update, ctx):
         await update.message.reply_text(
             f"Stiker paketi yo'q (stikerlar {state}). Qo'shish: /stiker_qosh <nom>")
         return
+    ok = await ensure_packs(ctx.bot, names)
+    labs = labels_of(st)
     lines = [f"Stikerlar: {state}. Paketlar: {len(names)} ta"]
     for i, n in enumerate(names, 1):
         mark_ = "  ← asosiy" if i == 1 else ""
-        lines.append(f"{i}. {n}  (t.me/addstickers/{n}){mark_}")
-    lines.append("Qo'shish: /stiker_qosh <nom>\nO'chirish: /stiker_ochir <nom>")
+        if n in ok:
+            its = STATE["packitems"][n]
+            emo = len({x["emoji"] for x in its if x["emoji"]})
+            lm = labs.get(n) or {}
+            done = sum(1 for x in its if x["uid"] in lm)
+            info = f"{len(its)} stiker, {emo} xil emoji, belgilangan {done}"
+        else:
+            info = "YUKLANMADI (nom noto'g'ri yoki paket o'chgan)"
+        lines.append(f"{i}. {n}{mark_}\n   {info}")
+    lines.append("Qo'shish: /stiker_qosh <nom>\nO'chirish: /stiker_ochir <nom>\n"
+                 "Belgilash: /stiker_belgila (asosiy paket) yoki /stiker_belgila hammasi")
     await update.message.reply_text("\n".join(lines))
+
+
+async def sticker_label_cmd(update, ctx):
+    """Paket stikerlarini Gemini bilan hissiyot bo'yicha belgilaydi (bir martalik)."""
+    from utils import label_pack
+    cid = update.message.chat_id
+    arg = " ".join(ctx.args).strip().rstrip("/")
+    st = await asyncio.to_thread(get_settings, cid)
+    names = _pack_names(st)
+    if not names:
+        await update.message.reply_text("Avval stiker paketi qo'shing: /stiker_qosh <nom>")
+        return
+    if not arg:
+        targets = names[:1]
+    elif arg.lower() == "hammasi":
+        targets = names
+    else:
+        nm = arg.split("/")[-1]
+        if nm not in names:
+            await update.message.reply_text("Bu paket ro'yxatda yo'q. Ro'yxat: /stiker_royxat")
+            return
+        targets = [nm]
+    if STATE.get("labeling"):
+        await update.message.reply_text("Belgilash allaqachon ketyapti, tugashini kuting.")
+        return
+    STATE["labeling"] = True
+    await update.message.reply_text(
+        "Belgilashni boshladim (har 10 stikerga 1 ta so'rov). Tugagach yozaman, "
+        "bu orada suhbatlashishingiz mumkin.")
+
+    async def save(c, text):
+        await asyncio.to_thread(update_setting, c, "sticker_labels", text)
+
+    async def job():
+        try:
+            for n in targets:
+                try:
+                    counts, left = await label_pack(ctx.bot, cid, st, n, save)
+                except Exception as e:
+                    msg_ = ("Bazada sticker_labels ustuni yo'q: sql-B-variant.sql "
+                            "dagi oxirgi qatorni ishga tushiring."
+                            if "sticker_labels" in str(e) else f"xato: {e}")
+                    await ctx.bot.send_message(cid, f"{n}: belgilanmadi ({msg_})")
+                    return
+                rows = ", ".join(f"{k}: {v}" for k, v in
+                                 sorted(counts.items(), key=lambda x: -x[1])) or "yo'q"
+                tail = (f"\nBelgilanmay qoldi: {left} (qayta yozsangiz faqat shular uriniladi)"
+                        if left else "")
+                await ctx.bot.send_message(cid, f"{n} belgilandi.\n{rows}{tail}")
+        except Exception as e:
+            print("BELGILASH job xato:", repr(e))
+        finally:
+            STATE["labeling"] = False
+
+    tasks = STATE.setdefault("tasks", set())
+    t = asyncio.create_task(job())
+    tasks.add(t)
+    t.add_done_callback(tasks.discard)
 
 
 async def sticker_add_cmd(update, ctx):

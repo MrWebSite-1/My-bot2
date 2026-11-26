@@ -22,7 +22,7 @@ from commands import (forget, list_rem, cancel, msg_on, msg_off, my_id,
 
 from commands import memory_muhim, memory_oddiy, memory_holat
 from commands import holat_cmd, eksport_cmd, odat_rejim_cmd
-from commands import sticker_list_cmd, sticker_add_cmd, sticker_del_cmd, sticker_primary_cmd
+from commands import sticker_list_cmd, sticker_add_cmd, sticker_del_cmd, sticker_primary_cmd, sticker_label_cmd
 from commands import (yozish_cmd, oraliq_cmd, saat_cmd, jimlik_cmd,
                       yozish_holat, odat_qosh, odatlar, odat_ochir,
                       kayfiyat_cmd, kayfiyat_qoy, kayfiyat_tozala)
@@ -36,6 +36,7 @@ MENU["eksport"] = "Ma'lumotni fayl qilib olish"
 MENU["stiker_royxat"] = "Stiker paketlari ro'yxati"
 MENU["stiker_qosh"] = "Stiker paketi qo'shish: /stiker_qosh <nom>"
 MENU["stiker_ochir"] = "Stiker paketini o'chirish: /stiker_ochir <nom>"
+MENU["stiker_belgila"] = "Stikerlarni hissiyot bo'yicha belgilash"
 MENU["stiker_asosiy"] = "Asosiy stiker paketini belgilash: /stiker_asosiy <nom>"
 MENU["odat_rejim"] = "Odat rejimi: A, B, AB yoki yoq"
 MENU.update({
@@ -102,6 +103,7 @@ COMMANDS = [
     ("stiker_qosh", sticker_add_cmd),
     ("stiker_ochir", sticker_del_cmd),
     ("stiker_asosiy", sticker_primary_cmd),
+    ("stiker_belgila", sticker_label_cmd),
     ("xulosa", summary_cmd),
     ("yangila", refresh_cmd),
     ("botlar", botlar_cmd),
