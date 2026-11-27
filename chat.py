@@ -26,6 +26,7 @@ from utils import (parse_json, send_text, style_text, get_pack,
                    mood_text, time_text, order_facts, with_tier, today_state, today_mood, intimacy_text)
 from voice import speak
 from fikr import remember, prompt_text
+import ritm
 from database import ASK_TAG, pending
 from relay import repeat_block, peer_answered
 from relay import (group_ctx, group_block, worth_deciding, lock, BUSY,
@@ -44,6 +45,7 @@ async def build_system(cid, st, pack, msg, vm, frows, state=None, mood_over=None
     system += intimacy_text(await asyncio.to_thread(count_user_messages, cid))
     system += mood_text(cid, mood_over)
     system += prompt_text(st)
+    system += ritm.length_text(msg, now)
     if vm == "always" or (vm == "auto" and msg.voice):
         system += ("\n\nBu javob OVOZ bilan yuboriladi: speech "
                    "maydonini to'ldir. Bu answer'ning og'zaki, "
@@ -484,6 +486,12 @@ async def _handle_core(update, ctx, gx):
         await react_to(msg, ctx, (parse_json(r.text) or {}).get("reaction"))
 
         # 5) yuborish va saqlash
+        if cid > 0 and ritm.want_pre(cid, msg, answer, vm):
+            try:   # ba'zan avval juda qisqa "hm, kutgin", keyin asosiy gap
+                await ctx.bot.send_message(cid, ritm.pre_text())
+                await asyncio.sleep(random.uniform(1.5, 3.0))
+            except Exception as e:
+                print("RITM xato:", e)
         await asyncio.sleep(min(2.5, 0.6 + len(answer) / 150))
         try:
             await ctx.bot.send_chat_action(cid, "typing")
