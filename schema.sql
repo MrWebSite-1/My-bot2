@@ -69,3 +69,9 @@ alter table settings add column if not exists bot_turns int;
 alter table settings add column if not exists bot_delay int;
 alter table settings add column if not exists bot_daily int;
 alter table settings add column if not exists bot_every int;
+
+-- Stiker belgilari (/stiker_belgila): har chat uchun JSON matn
+alter table settings add column if not exists sticker_labels text;
+
+-- Fikr tizimi (/fikr, 👎/👍): har chat uchun JSON matn
+alter table settings add column if not exists feedback text;

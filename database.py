@@ -209,3 +209,6 @@ def count_user_messages(cid):
     r = (db.table("messages").select("id", count="exact")
          .eq("chat_id", cid).eq("role", "user").limit(1).execute())
     return r.count or 0
+
+# Sanali voqea haqida keyin so'rash: eslatma task'i shu belgi bilan boshlanadi
+ASK_TAG = "[so'ra] "

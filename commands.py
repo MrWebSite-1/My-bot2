@@ -737,3 +737,30 @@ async def sticker_primary_cmd(update, ctx):
     names.insert(0, name)
     await asyncio.to_thread(update_setting, cid, "sticker_set", ",".join(names))
     await update.message.reply_text(f"Asosiy paket: {name}. Stikerlarning yarmi shundan olinadi.")
+
+
+async def fikr_cmd(update, ctx):
+    """/fikr [uzun|sovuq|hazil|qisqa|tozala] - javob uslubi haqida fikr."""
+    import fikr
+    msg = update.message
+    cid = msg.chat_id
+    arg = ctx.args[0].lower() if ctx.args else ""
+    try:
+        if arg in fikr.TAGS:
+            await fikr.add_tag(cid, arg)
+            await msg.reply_text("Tushundim, shunga moslashaman 🤍")
+            return
+        if arg == "tozala":
+            await fikr.clear(cid)
+            await msg.reply_text("Fikrlar tozalandi.")
+            return
+        st = await asyncio.to_thread(get_settings, cid)
+        cur = ", ".join(fikr.TAGS[t][0] for t in fikr.active_tags(st)) \
+            or "hozircha yo'q"
+        await msg.reply_text(
+            "Hozirgi fikrlar: " + cur + "\n\nJavob yoqmasa, unga 👎 "
+            "reaksiya qo'ying yoki yozing: /fikr uzun, /fikr sovuq, "
+            "/fikr hazil, /fikr qisqa\nTozalash: /fikr tozala")
+    except Exception as e:
+        print("FIKR xato:", e)
+        await msg.reply_text("Saqlay olmadim, keyinroq urinib ko'ring.")

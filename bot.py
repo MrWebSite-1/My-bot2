@@ -4,7 +4,7 @@ Yangi buyruq qo'shish: commands.py da funksiya yozing, pastda ro'yxatga qo'shing
 import asyncio, os, threading
 from telegram.ext import (ApplicationBuilder, MessageHandler,
                           CommandHandler, CallbackQueryHandler,
-                          ChatMemberHandler, filters)
+                          ChatMemberHandler, MessageReactionHandler, filters)
 from config import ACCESS, CHAT_OK
 from guard import guarded, on_added
 import relay
@@ -14,7 +14,8 @@ from bcommands import (botlar_cmd, rejim_cmd, gap_cmd, mustaqil_cmd,
 from server import run_web
 from loops import start_loop
 from chat import handle
-from buttons import on_button
+from buttons import on_button, on_reaction
+from commands import fikr_cmd
 from commands import (forget, list_rem, cancel, msg_on, msg_off, my_id,
                       memory_cmd, fact_del, fact_add, summary_cmd,
                       refresh_cmd, style_cmd, voice_cmd, voice_test,
@@ -28,7 +29,7 @@ from commands import (yozish_cmd, oraliq_cmd, saat_cmd, jimlik_cmd,
                       kayfiyat_cmd, kayfiyat_qoy, kayfiyat_tozala)
 
 threading.Thread(target=run_web, daemon=True).start()
-from telegram import BotCommand
+from telegram import BotCommand, Update
 
 MENU = {'id': "Telegram ID'ingiz", 'unut': "Hamma xotirani o'chirish", 'holat': 'Bot holati va bugungi sarf', 'eslatmalar': "Eslatmalar ro'yxati", 'bekor': 'Eslatmani bekor qilish: /bekor 3', 'xabar_bor': "O'zi yozishni yoqish", 'xabar_yoq': "O'zi yozishni o'chirish", 'xotira': "Xotira bo'limlari", 'xotira_muhim': 'Muhim faktlar', 'xotira_oddiy': 'Oddiy faktlar', 'xotira_holat': 'Bugungi holat', 'fakt_ochir': "Faktni o'chirish: /fakt_ochir 2", 'eslab_qol': "Fakt qo'shish: /eslab_qol matn", 'odat_qosh': "Odat qo'shish", 'odatlar': "Odatlar ro'yxati", 'odat_ochir': "Odatni o'chirish: /odat_ochir 2", 'yozish': 'Kuniga necha marta yozish', 'yozish_oraliq': 'Xabarlar orasi (daqiqa)', 'yozish_saat': 'Yozish soatlari', 'jimlik': 'Necha soat yozmasangiz yozish', 'yozish_holat': 'Yozish sozlamalari', 'kayfiyat': 'Hozirgi kayfiyat', 'kayfiyat_qoy': "Kayfiyatni qo'yish", 'kayfiyat_tozala': "Qo'lda kayfiyatni olib tashlash", 'uslub': 'Javob uslubi', 'ovoz': 'Ovoz sozlamalari', 'ovoz_test': 'Ovozlarni sinash', 'stiker_paket': 'Stiker paketini tanlash', 'stiker_yoq': "Stikerlarni o'chirish", 'stiker_bor': 'Stikerlarni yoqish', 'xulosa': 'Suhbat xulosasi', 'yangila': 'Faktlarni yangilash'}
 
@@ -50,6 +51,7 @@ MENU.update({
     "botlar_kunlik": "Kunlik bot-bot chegarasi (0 = yo'q)",
     "botlar_stop": "Botlar gaplashuvini darhol to'xtatish",
     "ortoq_fakt": "Ikkala botga umumiy fakt (lichkada)",
+    "fikr": "Javob haqida fikr: /fikr uzun, sovuq, hazil, qisqa",
 })
 
 async def post_init_all(app):
@@ -116,11 +118,13 @@ COMMANDS = [
     ("botlar_kunlik", kunlik_cmd),
     ("botlar_stop", stop_cmd),
     ("ortoq_fakt", ortoq_fakt_cmd),
+    ("fikr", fikr_cmd),
 ]
 
 app.add_handler(CommandHandler("id", guarded(my_id, True)))
 app.add_handler(ChatMemberHandler(on_added, ChatMemberHandler.MY_CHAT_MEMBER))
 app.add_handler(CallbackQueryHandler(on_button))
+app.add_handler(MessageReactionHandler(on_reaction))
 for name, fn in COMMANDS:
     app.add_handler(CommandHandler(
         name, guarded(fn, True), filters=ACCESS & CHAT_OK))
@@ -128,4 +132,4 @@ app.add_handler(MessageHandler(
     (filters.VOICE | filters.PHOTO | filters.Sticker.ALL |
      (filters.TEXT & ~filters.COMMAND)) & ACCESS & CHAT_OK,
     guarded(handle)))
-app.run_polling(bootstrap_retries=-1)
+app.run_polling(bootstrap_retries=-1, allowed_updates=Update.ALL_TYPES)

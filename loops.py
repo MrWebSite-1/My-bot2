@@ -22,7 +22,7 @@ from relay import auto_tick
 from ai import gen, SAFETY
 from config import FALLBACKS
 from database import messages_between, save_fact, del_fact, count_user_messages
-from database import BOT_OPEN_TAG
+from database import BOT_OPEN_TAG, ASK_TAG
 from google.genai import types
 from datetime import timezone, timedelta
 
@@ -448,7 +448,8 @@ async def reminder_loop(app):
         try:
             rows = await asyncio.to_thread(due_reminders)
             for x in rows:
-                kb = InlineKeyboardMarkup([[
+                ask = str(x["task"]).startswith(ASK_TAG)
+                kb = None if ask else InlineKeyboardMarkup([[
                     InlineKeyboardButton(
                         "⏰ 10 daq", callback_data=f"snz:{x['id']}:10"),
                     InlineKeyboardButton(
@@ -458,9 +459,18 @@ async def reminder_loop(app):
                 sent = False
                 try:
                     await app.bot.send_message(
-                        x["chat_id"], "⏰ Eslatma: " + x["task"],
+                        x["chat_id"],
+                        x["task"][len(ASK_TAG):].strip() if ask
+                        else "⏰ Eslatma: " + x["task"],
                         reply_markup=kb)
                     sent = True
+                    if ask:   # keyingi javobda nima so'ralganini bilsin
+                        try:
+                            await asyncio.to_thread(
+                                save_msg, x["chat_id"], "model",
+                                x["task"][len(ASK_TAG):].strip())
+                        except Exception as e:
+                            print("SO'RA saqlash xato:", e)
                 except Exception as e:
                     n = REM_TRIES.get(x["id"], 0) + 1
                     REM_TRIES[x["id"]] = n

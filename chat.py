@@ -25,6 +25,8 @@ from memory import maybe_extract
 from utils import (parse_json, send_text, style_text, get_pack,
                    mood_text, time_text, order_facts, with_tier, today_state, today_mood, intimacy_text)
 from voice import speak
+from fikr import remember, prompt_text
+from database import ASK_TAG, pending
 from relay import repeat_block, peer_answered
 from relay import (group_ctx, group_block, worth_deciding, lock, BUSY,
                    after_reply, note_owner)
@@ -41,6 +43,7 @@ async def build_system(cid, st, pack, msg, vm, frows, state=None, mood_over=None
     system += style_text(st)
     system += intimacy_text(await asyncio.to_thread(count_user_messages, cid))
     system += mood_text(cid, mood_over)
+    system += prompt_text(st)
     if vm == "always" or (vm == "auto" and msg.voice):
         system += ("\n\nBu javob OVOZ bilan yuboriladi: speech "
                    "maydonini to'ldir. Bu answer'ning og'zaki, "
@@ -181,31 +184,48 @@ def parse_reply(r, msg):
 
 
 async def apply_reminder(cid, rem):
-    """Eslatma qo'yadi. Javobga qo'shiladigan izohni qaytaradi."""
+    """Eslatma qo'yadi. Javobga qo'shiladigan izohni qaytaradi.
+    task '[so'ra] ' bilan boshlansa: sanali voqea haqida jimgina so'rash
+    (izohsiz, kuniga bittadan, eng ko'pi 5 ta)."""
     extra = ""
     if isinstance(rem, dict) and rem.get("task") \
             and rem.get("time"):
+        ask = str(rem["task"]).startswith(ASK_TAG)
         try:
             local = datetime.strptime(
                 rem["time"], "%Y-%m-%d %H:%M").replace(tzinfo=TZ)
             if local <= datetime.now(TZ):
-                extra = ("\n\n⚠️ Bu vaqt o'tib ketgan, "
-                         "eslatma qo'yilmadi.")
+                if not ask:
+                    extra = ("\n\n⚠️ Bu vaqt o'tib ketgan, "
+                             "eslatma qo'yilmadi.")
             else:
                 utc = local.astimezone(timezone.utc)
                 rp = rem.get("repeat")
-                if rp not in REPEATS:
+                if rp not in REPEATS or ask:
                     rp = None
+                task = str(rem["task"])
+                if ask:
+                    task = task[:160]
+                    rows = await asyncio.to_thread(pending, cid)
+                    asks = [r for r in rows
+                            if str(r["task"]).startswith(ASK_TAG)]
+                    same_day = [r for r in asks if datetime.fromisoformat(
+                        r["remind_at"].replace("Z", "+00:00")
+                    ).astimezone(TZ).date() == local.date()]
+                    if len(asks) >= 5 or same_day:
+                        return ""
                 await asyncio.to_thread(
-                    save_reminder, cid, rem["task"],
+                    save_reminder, cid, task,
                     utc.strftime(UTC_FMT), rp)
-                tag = f" 🔁 {REPEATS[rp]}" if rp else ""
-                extra = (f"\n\n✅ Eslatma qo'yildi: {rem['task']}"
-                         f" ({local.strftime('%d.%m %H:%M')}){tag}")
+                if not ask:
+                    tag = f" 🔁 {REPEATS[rp]}" if rp else ""
+                    extra = (f"\n\n✅ Eslatma qo'yildi: {rem['task']}"
+                             f" ({local.strftime('%d.%m %H:%M')}){tag}")
         except Exception as e:
             print("ESLATMA xato:", e)
-            extra = ("\n\n⚠️ Vaqtni tushunmadim, "
-                     "eslatma qo'yilmadi.")
+            if not ask:
+                extra = ("\n\n⚠️ Vaqtni tushunmadim, "
+                         "eslatma qo'yilmadi.")
     return extra
 
 
@@ -470,6 +490,8 @@ async def _handle_core(update, ctx, gx):
         except Exception:
             pass
         sent = await deliver(msg, ctx, cid, vm, st, answer, speech, extra)
+        if sent is not None and cid > 0:
+            remember(cid, sent.message_id, answer)  # 👎/👍 reaksiya uchun
         await asyncio.to_thread(save_msg, cid, "user", user_text)
         await asyncio.to_thread(save_msg, cid, "model", answer)
         if cid > 0:  # faqat lichka
